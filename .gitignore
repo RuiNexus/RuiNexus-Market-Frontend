@@ -1,0 +1,7 @@
+/config.php
+/.idea
+/.vscode
+*.log
+*.cache
+.DS_Store
+Thumbs.db
