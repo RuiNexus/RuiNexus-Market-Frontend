@@ -114,7 +114,7 @@ async function publishItem(e) {
     const data = new URLSearchParams(formData).toString();
 
     try {
-        const resp = await fetch('<?php echo $apiBase; ?>/api/market/create', {
+        const resp = await fetch('<?php echo $apiBase; ?>/market_api.php?action=create', {
             method: 'POST',
             headers: {'Content-Type': 'application/x-www-form-urlencoded'},
             body: data,

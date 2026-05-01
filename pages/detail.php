@@ -106,7 +106,7 @@ $user       = Auth::getUser();
 async function buyItem(id) {
     if (!confirm('确认购买此服务器？')) return;
     try {
-        const resp = await fetch('<?php echo $apiBase; ?>/api/market/buy', {
+        const resp = await fetch('<?php echo $apiBase; ?>/market_api.php?action=buy', {
             method: 'POST',
             headers: {'Content-Type': 'application/x-www-form-urlencoded'},
             body: 'listing_id=' + id + '&pay_type=online',
@@ -128,7 +128,7 @@ async function buyItem(id) {
 
 async function toggleFavorite(id) {
     try {
-        const resp = await fetch('<?php echo $apiBase; ?>/api/market/favorite/' + id, {
+        const resp = await fetch('<?php echo $apiBase; ?>/market_api.php?action=favorite&id=' + id, {
             method: 'POST',
             credentials: 'include'
         });

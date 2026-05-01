@@ -4,6 +4,7 @@
  * RuiNexus Market - Frontend API Client
  * 
  * 封装对魔方财务 Market 插件的 API 调用
+ * 请求独立入口文件 market_api.php，不依赖加密的路由系统
  *
  * 开发者: RuiNexus / YeHuaiJing
  */
@@ -14,6 +15,7 @@ class ApiClient
 {
     private $baseUrl;
     private $token;
+    private $apiEntry = 'market_api.php';
 
     public function __construct($baseUrl)
     {
@@ -30,119 +32,88 @@ class ApiClient
         $this->authCookie = $cookieData;
     }
 
-    /**
-     * 获取站点配置
-     */
+    private function apiUrl($action, $params = [])
+    {
+        $url = $this->baseUrl . '/' . $this->apiEntry . '?action=' . $action;
+        if ($params) {
+            $url .= '&' . http_build_query($params);
+        }
+        return $url;
+    }
+
     public function getConfig()
     {
-        return $this->get('/api/market/config');
+        return $this->get('config');
     }
 
-    /**
-     * 获取服务器列表
-     */
     public function getList($params = [])
     {
-        return $this->get('/api/market/list', $params);
+        return $this->get('list', $params);
     }
 
-    /**
-     * 获取详情
-     */
     public function getDetail($id)
     {
-        return $this->get("/api/market/detail/{$id}");
+        return $this->get('detail', ['id' => $id]);
     }
 
-    /**
-     * 获取我可上架的host
-     */
     public function getMyHosts()
     {
-        return $this->get('/api/market/my_hosts');
+        return $this->get('my_hosts');
     }
 
-    /**
-     * 发布
-     */
     public function create($data)
     {
-        return $this->post('/api/market/create', $data);
+        return $this->post('create', $data);
     }
 
-    /**
-     * 购买
-     */
     public function buy($data)
     {
-        return $this->post('/api/market/buy', $data);
+        return $this->post('buy', $data);
     }
 
-    /**
-     * 我的发布
-     */
     public function getMyListings($params = [])
     {
-        return $this->get('/api/market/my_listings', $params);
+        return $this->get('my_listings', $params);
     }
 
-    /**
-     * 我的购买
-     */
     public function getMyOrders($params = [])
     {
-        return $this->get('/api/market/my_orders', $params);
+        return $this->get('my_orders', $params);
     }
 
-    /**
-     * 我的销售
-     */
     public function getMySales($params = [])
     {
-        return $this->get('/api/market/my_sales', $params);
+        return $this->get('my_sales', $params);
     }
 
-    /**
-     * 收藏/取消收藏
-     */
     public function favorite($id)
     {
-        return $this->post("/api/market/favorite/{$id}");
+        return $this->post('favorite', ['id' => $id]);
     }
 
-    /**
-     * 我的收藏
-     */
     public function getFavorites($params = [])
     {
-        return $this->get('/api/market/favorites', $params);
+        return $this->get('favorites', $params);
     }
 
-    /**
-     * 下架
-     */
     public function delist($id)
     {
-        return $this->post("/api/market/delist/{$id}");
+        return $this->post('delist', ['id' => $id]);
     }
 
-    private function get($path, $params = [])
+    private function get($action, $params = [])
     {
-        return $this->request('GET', $path, $params);
+        return $this->request('GET', $action, $params);
     }
 
-    private function post($path, $data = [])
+    private function post($action, $data = [])
     {
-        return $this->request('POST', $path, $data);
+        return $this->request('POST', $action, $data);
     }
 
-    private function request($method, $path, $data = [])
+    private function request($method, $action, $data = [])
     {
-        $url = $this->baseUrl . $path;
-
-        if ($method === 'GET' && $data) {
-            $url .= '?' . http_build_query($data);
-        }
+        $url = $this->apiUrl($action, $method === 'GET' ? [] : []);
 
         $ch = curl_init();
         curl_setopt($ch, CURLOPT_URL, $url);
@@ -159,6 +130,10 @@ class ApiClient
 
         if (isset($this->authCookie)) {
             curl_setopt($ch, CURLOPT_COOKIE, $this->authCookie);
+        }
+
+        if ($method === 'GET' && $data) {
+            curl_setopt($ch, CURLOPT_URL, $this->apiUrl($action, $data));
         }
 
         if ($method === 'POST') {

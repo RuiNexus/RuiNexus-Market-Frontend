@@ -50,7 +50,7 @@ $statusMap = [0 => '待审核', 1 => '上架中', 2 => '已售出', 3 => '已下
 <?php endif; ?>
 </main>
 <script>
-async function delistItem(id) { if(!confirm('确认下架？')) return; try { const r = await fetch('<?php echo $apiBase; ?>/api/market/delist/'+id, {method:'POST',credentials:'include'}); const d = await r.json(); alert(d.msg||'操作完成'); location.reload(); } catch(e) { alert('请求失败'); } }
+async function delistItem(id) { if(!confirm('确认下架？')) return; try { const r = await fetch('<?php echo $apiBase; ?>/market_api.php?action=delist&id='+id, {method:'POST',credentials:'include'}); const d = await r.json(); alert(d.msg||'操作完成'); location.reload(); } catch(e) { alert('请求失败'); } }
 </script>
 <footer class="footer"><p>&copy; <?php echo date('Y'); ?> RuiNexus Market</p></footer>
 </body>
