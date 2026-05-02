@@ -10,7 +10,7 @@
 
 return [
     // 魔方财务主站 API 地址
-    'api_base_url' => 'https://www.yourdomain.com',
+    'api_base_url' => 'https://test.ruinexus.com',
 
     // 站点名称 (留空则从插件配置读取)
     'site_name' => 'RuiNexus Market',
