@@ -71,7 +71,7 @@ function fmtPrice($p) {
 <!-- ===== Nav ===== -->
 <nav class="nav">
     <a href="https://test.ruinexus.com" class="nav-logo">
-        <img src="https://test.ruinexus.com/themes/clientarea/default/assets/images/logo-inovice.png" alt="<?php echo htmlspecialchars($siteName); ?>" height="36">
+        <img src="https://test.ruinexus.com/themes/clientarea/default/assets/images/logo-inovice.png" alt="<?php echo htmlspecialchars($siteName); ?>">
     </a>
     <ul class="nav-links">
         <li><a href="/" class="active">市场</a></li>
