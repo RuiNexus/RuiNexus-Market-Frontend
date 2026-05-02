@@ -18,21 +18,15 @@ $keyword  = trim($_GET['keyword'] ?? '');
 $size     = 15;
 
 $siteConfig = $api->getConfig()['data'] ?? [];
-$siteName   = $siteConfig['site_name'] ?? 'RUI NEXUS MARKET';
+$siteName   = $siteConfig['site_name'] ?? '锐翼交易市场';
 $notice     = $siteConfig['notice_content'] ?? '';
+$user       = Auth::getUser();
 
-$listResult = $api->getList([
-    'page'    => $page,
-    'size'    => $size,
-    'sort'    => $sort,
-    'keyword' => $keyword,
-]);
+$apiBaseUrl = 'https://test.ruinexus.com';
 
-$list  = $listResult['data']['list'] ?? [];
-$total = $listResult['data']['total'] ?? 0;
-$totalPages = max(1, ceil($total / $size));
-$specLabels = $listResult['data']['spec_labels'] ?? [];
-$user  = Auth::getUser();
+$initialPage = $page;
+$initialSort = $sort;
+$initialKeyword = $keyword;
 
 function remainingClass($pct) {
     if ($pct > 65) return 'is-safe';
@@ -42,10 +36,10 @@ function remainingClass($pct) {
 
 function billingLabel($cycle) {
     $map = [
-        'monthly' => 'MONTHLY', 'quarterly' => 'QUARTERLY',
-        'semiannually' => 'SEMI-ANNUAL', 'annually' => 'ANNUAL',
-        'biennially' => 'BIENNIAL', 'triennially' => 'TRIENNIAL',
-        'onetime' => 'PERMANENT', 'free' => 'FREE',
+        'monthly' => '月付', 'quarterly' => '季付',
+        'semiannually' => '半年付', 'annually' => '年付',
+        'biennially' => '两年付', 'triennially' => '三年付',
+        'onetime' => '永久', 'free' => '免费',
     ];
     return $map[$cycle] ?? strtoupper($cycle);
 }
@@ -79,17 +73,17 @@ function fmtPrice($p) {
 <nav class="nav">
     <a href="/" class="nav-brand"><?php echo htmlspecialchars($siteName); ?></a>
     <ul class="nav-links">
-        <li><a href="/" class="active">MARKET</a></li>
-        <li><a href="/about">HELP</a></li>
+        <li><a href="/" class="active">市场</a></li>
+        <li><a href="/about">帮助</a></li>
     </ul>
     <div class="nav-actions">
         <?php if ($user['loggedIn']): ?>
-            <a href="/publish" class="nav-cta">PUBLISH</a>
-            <a href="/user/listings" class="nav-cta--ghost">MY</a>
-            <a href="/user/orders" class="nav-cta--ghost">ORDERS</a>
+            <a href="/publish" class="nav-cta">发布</a>
+            <a href="/user/listings" class="nav-cta--ghost">我的</a>
+            <a href="/user/orders" class="nav-cta--ghost">订单</a>
         <?php else: ?>
-            <a href="<?php echo Auth::getLoginUrl($apiBase); ?>" class="nav-cta--ghost">SIGN IN</a>
-            <a href="<?php echo Auth::getRegisterUrl($apiBase); ?>" class="nav-cta">REGISTER</a>
+            <a href="<?php echo Auth::getLoginUrl($apiBase); ?>" class="nav-cta--ghost">登录</a>
+            <a href="<?php echo Auth::getRegisterUrl($apiBase); ?>" class="nav-cta">注册</a>
         <?php endif; ?>
     </div>
 </nav>
@@ -99,197 +93,73 @@ function fmtPrice($p) {
 <div class="site-notice"><?php echo nl2br(htmlspecialchars($notice)); ?></div>
 <?php endif; ?>
 
+<!-- ===== Debug Info ===== -->
+<div style="display:none;" id="api-debug" class="debug-panel">
+    <div style="background:#1a1a2e;padding:12px;margin-bottom:16px;border-radius:4px;font-family:monospace;font-size:12px;color:#fff;">
+        <div>API Status: <span style="color:<?php echo $apiStatus == 200 ? '#4ade80' : '#f87171'; ?>"><?php echo htmlspecialchars($apiStatus); ?></span></div>
+        <div>API Message: <?php echo htmlspecialchars($apiMsg); ?></div>
+        <div>API URL: <?php echo htmlspecialchars('https://test.ruinexus.com/market_api.php?action=list&page='.$page.'&size='.$size.'&sort='.$sort.($keyword ? '&keyword='.urlencode($keyword) : '')); ?></div>
+        <div>Items Count: <?php echo count($list); ?></div>
+    </div>
+</div>
+
 <!-- ===== Hero ===== -->
 <section class="hero">
-    <div class="hero-label">RUI NEXUS MARKET</div>
-    <h1>Server Trading Market</h1>
+    <div class="hero-label">锐翼交易市场</div>
+    <h1>服务器交易平台</h1>
     <p>安全可靠的服务器与数字资产交易平台。担保交易 · 安全转让 · 实时挂单。</p>
     <div class="hero-buttons">
         <?php if ($user['loggedIn']): ?>
-            <a href="/publish" class="btn-primary">PUBLISH NOW</a>
-            <a href="/user/listings" class="btn-ghost">MY LISTINGS</a>
+            <a href="/publish" class="btn-primary">立即发布</a>
+            <a href="/user/listings" class="btn-ghost">我的商品</a>
         <?php else: ?>
-            <a href="<?php echo Auth::getRegisterUrl($apiBase); ?>" class="btn-primary">GET STARTED</a>
-            <a href="/about" class="btn-ghost">LEARN MORE</a>
+            <a href="<?php echo Auth::getRegisterUrl($apiBase); ?>" class="btn-primary">立即开始</a>
+            <a href="/about" class="btn-ghost">了解更多</a>
         <?php endif; ?>
     </div>
 </section>
 
 <!-- ===== Products Section ===== -->
 <section class="section">
-    <div class="section-label">01 / PRODUCTS</div>
-    <h2 class="section-title">Available Servers</h2>
+    <div class="section-label">01 / 商品</div>
+    <h2 class="section-title">可用服务器</h2>
 
     <!-- Toolbar -->
-    <form class="toolbar" method="get" action="/">
+    <form class="toolbar" id="searchForm" method="get" action="/">
         <div class="toolbar__search">
             <span class="toolbar__search-icon"><i class="fas fa-search"></i></span>
-            <input type="text" name="keyword" value="<?php echo htmlspecialchars($keyword); ?>" placeholder="Search products...">
+            <input type="text" name="keyword" id="searchKeyword" value="<?php echo htmlspecialchars($keyword); ?>" placeholder="搜索商品...">
         </div>
         <div class="toolbar__sort">
-            <span class="toolbar__sort-label">Sort:</span>
-            <select name="sort" onchange="this.form.submit()">
-                <option value="time_desc" <?php echo $sort==='time_desc'?'selected':''; ?>>Newest</option>
-                <option value="price_asc" <?php echo $sort==='price_asc'?'selected':''; ?>>Price: Low → High</option>
-                <option value="price_desc" <?php echo $sort==='price_desc'?'selected':''; ?>>Price: High → Low</option>
-                <option value="remaining_asc" <?php echo $sort==='remaining_asc'?'selected':''; ?>>Expiring Soon</option>
-                <option value="views_desc" <?php echo $sort==='views_desc'?'selected':''; ?>>Most Viewed</option>
+            <span class="toolbar__sort-label">排序:</span>
+            <select name="sort" id="sortSelect" onchange="loadProducts()">
+                <option value="time_desc" <?php echo $sort==='time_desc'?'selected':''; ?>>最新</option>
+                <option value="price_asc" <?php echo $sort==='price_asc'?'selected':''; ?>>价格从低到高</option>
+                <option value="price_desc" <?php echo $sort==='price_desc'?'selected':''; ?>>价格从高到低</option>
+                <option value="remaining_asc" <?php echo $sort==='remaining_asc'?'selected':''; ?>>即将到期</option>
+                <option value="views_desc" <?php echo $sort==='views_desc'?'selected':''; ?>>最多浏览</option>
             </select>
         </div>
-        <span class="toolbar__total"><?php echo $total; ?> items</span>
+        <span class="toolbar__total" id="totalCount">0 件商品</span>
     </form>
 
+    <!-- Loading -->
+    <div class="loading" id="loading" style="display:none;">
+        <i class="fas fa-spinner fa-spin"></i>
+        <span>加载中...</span>
+    </div>
+
     <!-- Card Grid -->
-    <div class="card-grid">
-        <?php if (empty($list)): ?>
+    <div class="card-grid" id="cardGrid">
         <div class="empty">
             <div class="empty__icon"><i class="fas fa-inbox"></i></div>
-            <p>No products available</p>
+            <p>加载商品...</p>
         </div>
-        <?php else: ?>
-            <?php foreach ($list as $item): ?>
-            <?php
-                $specData = is_array($item['spec_data'] ?? null) ? $item['spec_data']
-                    : (is_string($item['spec_data'] ?? null) ? json_decode($item['spec_data'], true) : []);
-                if (!is_array($specData)) $specData = [];
-                $itemSpecLabels = $item['spec_labels'] ?? $specLabels;
-
-                $remainingDays = $item['remaining_days'] ?? null;
-                $regdate = $item['regdate'] ?? 0;
-                $nextduedate = $item['nextduedate'] ?? 0;
-                $durationDays = ($regdate > 0 && $nextduedate > $regdate)
-                    ? round(($nextduedate - $regdate) / 86400) : 0;
-                $hasRemaining = $remainingDays !== null && $durationDays > 0;
-                $remainingPct = $hasRemaining
-                    ? min(100, round($remainingDays / max($durationDays, 1) * 100)) : 0;
-                $remClass = remainingClass($remainingPct);
-
-                $billingTag = billingLabel($item['billing_cycle'] ?? '');
-                $discount = discountRate($item['sale_price'] ?? 0, $item['original_amount'] ?? 0);
-
-                $createTime = $item['create_time'] ?? 0;
-                $createdDate = $createTime > 0 ? date('Y-m-d', $createTime) : '';
-                $views = intval($item['views'] ?? 0);
-            ?>
-            <article class="card" onclick="location.href='/detail?id=<?php echo $item['id']; ?>'">
-
-                <!-- Header -->
-                <div class="card__header">
-                    <h3 class="card__title" title="<?php echo htmlspecialchars($item['title'] ?? $item['product_name']); ?>">
-                        <?php echo htmlspecialchars($item['title'] ?? $item['product_name']); ?>
-                    </h3>
-                    <svg class="card__arrow" viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="4" stroke-linecap="butt">
-                        <path d="m16 39.513 15.556-15.557L16 8.4"></path>
-                    </svg>
-                </div>
-
-                <!-- Tags -->
-                <div class="card__tags">
-                    <?php if ($billingTag): ?>
-                    <span class="card__tag"><?php echo htmlspecialchars($billingTag); ?></span>
-                    <?php endif; ?>
-                    <?php if ($remainingDays !== null): ?>
-                    <span class="card__tag card__tag--days <?php echo $remClass; ?>">
-                        <?php echo $remainingDays; ?> DAYS LEFT
-                    </span>
-                    <?php endif; ?>
-                </div>
-
-                <!-- Specs -->
-                <?php if (!empty($specData)): ?>
-                <div class="card__specs">
-                    <?php foreach ($specData as $field => $value):
-                        $label = $itemSpecLabels[$field] ?? $field;
-                        $isBool = in_array(strtolower((string)$value), ['是','否','yes','no','true','false','支持','不支持'], true);
-                        $isYes = in_array(strtolower((string)$value), ['是','yes','true','支持'], true);
-                    ?>
-                    <div class="card__spec-row">
-                        <span class="card__spec-label"><?php echo htmlspecialchars($label); ?></span>
-                        <?php if ($isBool): ?>
-                        <span class="card__spec-value">
-                            <span class="card__spec-tag <?php echo $isYes ? 'is-yes' : 'is-no'; ?>">
-                                <?php echo $isYes ? 'YES' : 'NO'; ?>
-                            </span>
-                        </span>
-                        <?php else: ?>
-                        <span class="card__spec-value"><?php echo htmlspecialchars((string)$value); ?></span>
-                        <?php endif; ?>
-                    </div>
-                    <?php endforeach; ?>
-                </div>
-                <?php endif; ?>
-
-                <!-- Meta -->
-                <div class="card__meta">
-                    <?php if ($createdDate): ?>
-                    <span class="card__meta-item"><?php echo $createdDate; ?></span>
-                    <?php endif; ?>
-                    <span class="card__meta-sep"></span>
-                    <span class="card__meta-item"><i class="fas fa-eye"></i> <?php echo $views; ?></span>
-                </div>
-
-                <!-- Remaining Bar -->
-                <?php if ($hasRemaining): ?>
-                <div class="card__remaining-bar <?php echo $remClass; ?>">
-                    <div class="card__remaining-fill" style="width:<?php echo $remainingPct; ?>%"></div>
-                    <span class="card__remaining-text">
-                        <?php echo $remainingDays; ?> / <?php echo $durationDays; ?> DAYS (<?php echo $remainingPct; ?>%)
-                    </span>
-                </div>
-                <?php endif; ?>
-
-                <!-- Pricing -->
-                <div class="card__pricing">
-                    <?php if ($discount > 0): ?>
-                    <span class="card__discount">-<?php echo round((1 - $discount/10) * 100); ?>%</span>
-                    <?php endif; ?>
-                    <span class="card__price-symbol">¥</span>
-                    <span class="card__price-amount"><?php echo fmtPrice($item['sale_price'] ?? 0); ?></span>
-                    <span class="card__price-unit">CNY</span>
-                    <?php if (($item['original_amount'] ?? 0) > 0 && $item['sale_price'] != $item['original_amount']): ?>
-                    <span class="card__price-original">¥<?php echo fmtPrice($item['original_amount'] ?? 0); ?></span>
-                    <?php endif; ?>
-                </div>
-            </article>
-            <?php endforeach; ?>
-        <?php endif; ?>
     </div>
 
     <!-- Pagination -->
-    <?php if ($totalPages > 1): ?>
-    <div class="pagination">
-        <?php
-        $qp = function($p) use ($sort, $keyword) {
-            return '?page=' . $p . '&sort=' . urlencode($sort) . ($keyword ? '&keyword=' . urlencode($keyword) : '');
-        };
-        ?>
-        <a href="<?php echo $qp($page - 1); ?>" class="pagination__item <?php echo $page <= 1 ? 'disabled' : ''; ?>">
-            <i class="fas fa-chevron-left"></i>
-        </a>
-
-        <?php
-        $start = max(1, $page - 2);
-        $end = min($totalPages, $page + 2);
-        if ($start > 1): ?>
-        <a href="<?php echo $qp(1); ?>" class="pagination__item">1</a>
-        <?php if ($start > 2): ?><span class="pagination__item disabled">...</span><?php endif; ?>
-        <?php endif; ?>
-
-        <?php for ($i = $start; $i <= $end; $i++): ?>
-        <a href="<?php echo $qp($i); ?>" class="pagination__item <?php echo $i === $page ? 'active' : ''; ?>"><?php echo $i; ?></a>
-        <?php endfor; ?>
-
-        <?php if ($end < $totalPages): ?>
-        <?php if ($end < $totalPages - 1): ?><span class="pagination__item disabled">...</span><?php endif; ?>
-        <a href="<?php echo $qp($totalPages); ?>" class="pagination__item"><?php echo $totalPages; ?></a>
-        <?php endif; ?>
-
-        <a href="<?php echo $qp($page + 1); ?>" class="pagination__item <?php echo $page >= $totalPages ? 'disabled' : ''; ?>">
-            <i class="fas fa-chevron-right"></i>
-        </a>
-        <span class="pagination__info">PAGE <?php echo $page; ?> / <?php echo $totalPages; ?></span>
+    <div class="pagination" id="pagination" style="display:none;">
     </div>
-    <?php endif; ?>
 </section>
 
 <hr class="section-divider">
@@ -297,14 +167,14 @@ function fmtPrice($p) {
 <!-- ===== Dark Showcase ===== -->
 <section class="dark-showcase">
     <div class="dark-showcase-inner">
-        <div style="font-family:var(--font-display);font-size:12px;font-weight:400;color:var(--text-muted);text-transform:uppercase;letter-spacing:1.4px;margin-bottom:16px;">HOW IT WORKS</div>
-        <h2 style="font-family:var(--font-display);font-size:48px;font-weight:300;color:#fff;margin-bottom:16px;line-height:1.2;">Simple & Secure</h2>
+        <div style="font-family:var(--font-display);font-size:12px;font-weight:400;color:var(--text-muted);text-transform:uppercase;letter-spacing:1.4px;margin-bottom:16px;">如何使用</div>
+        <h2 style="font-family:var(--font-display);font-size:48px;font-weight:300;color:#fff;margin-bottom:16px;line-height:1.2;">简单安全</h2>
         <p style="font-size:16px;color:rgba(255,255,255,0.7);line-height:1.6;margin-bottom:24px;max-width:600px;">
-            List your server, set your price, and connect with buyers. Our escrow system ensures safe transactions for both parties.
+            发布您的服务器，设置价格，与买家建立联系。我们的担保系统确保双方交易安全。
         </p>
         <div style="display:flex;gap:12px;flex-wrap:wrap;">
-            <a href="/about" class="btn-primary">LEARN MORE</a>
-            <a href="/publish" class="btn-ghost">START SELLING</a>
+            <a href="/about" class="btn-primary">了解更多</a>
+            <a href="/publish" class="btn-ghost">开始出售</a>
         </div>
     </div>
 </section>
@@ -315,30 +185,255 @@ function fmtPrice($p) {
         <div class="footer__brand">
             <div class="footer__brand-name"><?php echo htmlspecialchars($siteName); ?></div>
             <p class="footer__brand-desc">
-                A secure platform for server and digital asset trading. Built with trust and transparency.
+                安全可靠的服务器与数字资产交易平台。值得信赖，透明交易。
             </p>
         </div>
         <div class="footer__links-group">
-            <h4>QUICK LINKS</h4>
+            <h4>快速链接</h4>
             <ul>
-                <li><a href="/">Market</a></li>
-                <li><a href="/about">Help Center</a></li>
-                <li><a href="/publish">Publish</a></li>
+                <li><a href="/">市场</a></li>
+                <li><a href="/about">帮助中心</a></li>
+                <li><a href="/publish">发布</a></li>
             </ul>
         </div>
         <div class="footer__links-group">
-            <h4>ABOUT</h4>
+            <h4>关于</h4>
             <ul>
-                <li><a href="/about">Privacy Policy</a></li>
-                <li><a href="/about">Terms of Service</a></li>
+                <li><a href="/about">隐私政策</a></li>
+                <li><a href="/about">服务条款</a></li>
             </ul>
         </div>
     </div>
     <div class="footer__bottom">
-        <p>&copy; <?php echo date('Y'); ?> RuiNexus Market — All rights reserved.</p>
-        <p>Powered by RuiNexus</p>
+        <p>&copy; <?php echo date('Y'); ?> <?php echo htmlspecialchars($siteName); ?> — 版权所有。</p>
+        <p>由锐翼科技驱动</p>
     </div>
 </footer>
+
+<script>
+const API_BASE = '<?php echo htmlspecialchars($apiBaseUrl); ?>';
+const INITIAL_PAGE = <?php echo $initialPage; ?>;
+const INITIAL_SORT = '<?php echo htmlspecialchars($initialSort); ?>';
+const INITIAL_KEYWORD = '<?php echo htmlspecialchars($initialKeyword); ?>';
+
+let currentPage = INITIAL_PAGE;
+let currentSort = INITIAL_SORT;
+let currentKeyword = INITIAL_KEYWORD;
+let specLabels = {};
+
+function billingLabel(cycle) {
+    const map = {
+        'monthly': '月付', 'quarterly': '季付',
+        'semiannually': '半年付', 'annually': '年付',
+        'biennially': '两年付', 'triennially': '三年付',
+        'onetime': '永久', 'free': '免费',
+    };
+    return map[cycle] || (cycle || '').toUpperCase();
+}
+
+function remainingClass(pct) {
+    if (pct > 65) return 'is-safe';
+    if (pct > 30) return 'is-warning';
+    return 'is-danger';
+}
+
+function discountRate(sale, orig) {
+    if (orig <= 0 || sale >= orig) return 0;
+    const r = Math.round(sale / orig * 10 * 10) / 10;
+    return r < 10 ? r : 0;
+}
+
+function fmtPrice(p) {
+    return (p == parseInt(p)) ? p.toLocaleString() : p.toFixed(2);
+}
+
+function escapeHtml(str) {
+    const div = document.createElement('div');
+    div.textContent = str;
+    return div.innerHTML;
+}
+
+function renderCard(item) {
+    const specData = typeof item.spec_data === 'string' ? JSON.parse(item.spec_data) : (item.spec_data || {});
+    const itemSpecLabels = item.spec_labels || specLabels;
+    
+    const remainingDays = item.remaining_days;
+    const regdate = item.regdate || 0;
+    const nextduedate = item.nextduedate || 0;
+    const durationDays = (regdate > 0 && nextduedate > regdate) ? Math.round((nextduedate - regdate) / 86400) : 0;
+    const hasRemaining = remainingDays !== null && remainingDays !== undefined && durationDays > 0;
+    const remainingPct = hasRemaining ? Math.min(100, Math.round(remainingDays / Math.max(durationDays, 1) * 100)) : 0;
+    const remClass = remainingClass(remainingPct);
+    
+    const billingTag = billingLabel(item.billing_cycle);
+    const discount = discountRate(item.sale_price || 0, item.original_amount || 0);
+    
+    const createTime = item.create_time || 0;
+    const createdDate = createTime > 0 ? new Date(createTime * 1000).toISOString().split('T')[0] : '';
+    const views = parseInt(item.views || 0);
+
+    let specsHtml = '';
+    if (Object.keys(specData).length > 0) {
+        specsHtml = '<div class="card__specs">';
+        for (const [field, value] of Object.entries(specData)) {
+            const label = itemSpecLabels[field] || field;
+            const lowerValue = String(value).toLowerCase();
+            const isBool = ['是','否','yes','no','true','false','支持','不支持'].includes(lowerValue);
+            const isYes = ['是','yes','true','支持'].includes(lowerValue);
+            
+            specsHtml += `<div class="card__spec-row">
+                <span class="card__spec-label">${escapeHtml(label)}</span>
+                <span class="card__spec-value">${isBool ? `<span class="card__spec-tag ${isYes ? 'is-yes' : 'is-no'}">${isYes ? '支持' : '不支持'}</span>` : escapeHtml(String(value))}</span>
+            </div>`;
+        }
+        specsHtml += '</div>';
+    }
+
+    return `<article class="card" onclick="location.href='/detail?id=${item.id}'">
+        <div class="card__header">
+            <h3 class="card__title" title="${escapeHtml(item.title || item.product_name)}">
+                ${escapeHtml(item.title || item.product_name)}
+            </h3>
+            <svg class="card__arrow" viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="4" stroke-linecap="butt">
+                <path d="m16 39.513 15.556-15.557L16 8.4"></path>
+            </svg>
+        </div>
+        
+        <div class="card__tags">
+            ${billingTag ? `<span class="card__tag">${escapeHtml(billingTag)}</span>` : ''}
+            ${remainingDays !== null && remainingDays !== undefined ? `<span class="card__tag card__tag--days ${remClass}">${remainingDays} 天剩余</span>` : ''}
+        </div>
+        
+        ${specsHtml}
+        
+        <div class="card__meta">
+            ${createdDate ? `<span class="card__meta-item">${createdDate}</span>` : ''}
+            <span class="card__meta-sep"></span>
+            <span class="card__meta-item"><i class="fas fa-eye"></i> ${views}</span>
+        </div>
+        
+        ${hasRemaining ? `<div class="card__remaining-bar ${remClass}">
+            <div class="card__remaining-fill" style="width:${remainingPct}%"></div>
+            <span class="card__remaining-text">${remainingDays} / ${durationDays} 天 (${remainingPct}%)</span>
+        </div>` : ''}
+        
+        <div class="card__pricing">
+            ${discount > 0 ? `<span class="card__discount">-${Math.round((1 - discount/10) * 100)}%</span>` : ''}
+            <span class="card__price-symbol">¥</span>
+            <span class="card__price-amount">${fmtPrice(item.sale_price || 0)}</span>
+            <span class="card__price-unit">CNY</span>
+            ${(item.original_amount || 0) > 0 && item.sale_price != item.original_amount ? `<span class="card__price-original">¥${fmtPrice(item.original_amount)}</span>` : ''}
+        </div>
+    </article>`;
+}
+
+function renderPagination(total, pageSize) {
+    const totalPages = Math.max(1, Math.ceil(total / pageSize));
+    if (totalPages <= 1) {
+        document.getElementById('pagination').style.display = 'none';
+        return;
+    }
+
+    let html = `<a href="#" class="pagination__item ${currentPage <= 1 ? 'disabled' : ''}" onclick="goPage(${currentPage - 1})">
+        <i class="fas fa-chevron-left"></i>
+    </a>`;
+
+    const start = Math.max(1, currentPage - 2);
+    const end = Math.min(totalPages, currentPage + 2);
+
+    if (start > 1) {
+        html += `<a href="#" class="pagination__item" onclick="goPage(1)">1</a>`;
+        if (start > 2) html += `<span class="pagination__item disabled">...</span>`;
+    }
+
+    for (let i = start; i <= end; i++) {
+        html += `<a href="#" class="pagination__item ${i === currentPage ? 'active' : ''}" onclick="goPage(${i})">${i}</a>`;
+    }
+
+    if (end < totalPages) {
+        if (end < totalPages - 1) html += `<span class="pagination__item disabled">...</span>`;
+        html += `<a href="#" class="pagination__item" onclick="goPage(${totalPages})">${totalPages}</a>`;
+    }
+
+    html += `<a href="#" class="pagination__item ${currentPage >= totalPages ? 'disabled' : ''}" onclick="goPage(${currentPage + 1})">
+        <i class="fas fa-chevron-right"></i>
+    </a>`;
+    html += `<span class="pagination__info">第 ${currentPage} / ${totalPages} 页</span>`;
+
+    document.getElementById('pagination').innerHTML = html;
+    document.getElementById('pagination').style.display = 'flex';
+}
+
+function goPage(page) {
+    if (page < 1) return;
+    currentPage = page;
+    loadProducts();
+}
+
+function loadProducts() {
+    currentSort = document.getElementById('sortSelect').value;
+    currentKeyword = document.getElementById('searchKeyword').value.trim();
+
+    const url = `${API_BASE}/market_api.php?action=list&page=${currentPage}&size=15&sort=${encodeURIComponent(currentSort)}${currentKeyword ? '&keyword=' + encodeURIComponent(currentKeyword) : ''}`;
+    
+    document.getElementById('loading').style.display = 'flex';
+    document.getElementById('cardGrid').style.opacity = '0.5';
+
+    fetch(url)
+        .then(response => response.json())
+        .then(data => {
+            document.getElementById('loading').style.display = 'none';
+            document.getElementById('cardGrid').style.opacity = '1';
+
+            if (data.status === 200 && data.data) {
+                specLabels = data.data.spec_labels || {};
+                const list = data.data.list || [];
+                const total = data.data.total || 0;
+
+                document.getElementById('totalCount').textContent = `${total} 件商品`;
+
+                if (list.length === 0) {
+                    document.getElementById('cardGrid').innerHTML = `<div class="empty">
+                        <div class="empty__icon"><i class="fas fa-inbox"></i></div>
+                        <p>暂无商品</p>
+                    </div>`;
+                } else {
+                    document.getElementById('cardGrid').innerHTML = list.map(renderCard).join('');
+                }
+
+                renderPagination(total, 15);
+            } else {
+                document.getElementById('cardGrid').innerHTML = `<div class="empty">
+                    <div class="empty__icon"><i class="fas fa-exclamation-triangle"></i></div>
+                    <p>${data.msg || '加载商品失败'}</p>
+                </div>`;
+            }
+        })
+        .catch(error => {
+            document.getElementById('loading').style.display = 'none';
+            document.getElementById('cardGrid').style.opacity = '1';
+            document.getElementById('cardGrid').innerHTML = `<div class="empty">
+                <div class="empty__icon"><i class="fas fa-exclamation-triangle"></i></div>
+                <p>网络错误: ${error.message}</p>
+            </div>`;
+        });
+}
+
+document.getElementById('searchKeyword').addEventListener('keyup', (e) => {
+    if (e.key === 'Enter') {
+        currentPage = 1;
+        loadProducts();
+    }
+});
+
+document.getElementById('searchForm').addEventListener('submit', (e) => {
+    e.preventDefault();
+    currentPage = 1;
+    loadProducts();
+});
+
+document.addEventListener('DOMContentLoaded', loadProducts);
+</script>
 
 </body>
 </html>
