@@ -15,6 +15,11 @@ return [
     // 站点名称 (留空则从插件配置读取)
     'site_name' => 'RuiNexus Market',
 
+    // 魔方 JWT Cookie 名称 (留空则自动扫描 Cookie 检测)
+    // 魔方 Cookie 命名规则: "ZJMF_" + MD5(system_license + 二级域名)[16:32]
+    // 如果自动检测不准确，可手动指定，如: 'ZJMF_AB12CD34EF56GH78'
+    'cookie_name' => '',
+
     // 缓存时间(秒)
     'cache_ttl' => 600,
 ];
