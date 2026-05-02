@@ -121,22 +121,51 @@ function fmtPrice($p) {
 
     $productId = intval($listing['product_id'] ?? 0);
     $origProduct = null;
+    $origCurrency = [];
+    $origDebug = '';
     if ($productId > 0) {
         $productUrl = $apiBaseUrl . '/v1/products?product_id=' . $productId;
-        $ch = curl_init($productUrl);
-        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-        curl_setopt($ch, CURLOPT_TIMEOUT, 10);
-        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
-        curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, false);
-        $productResult = curl_exec($ch);
-        curl_close($ch);
+        $origDebug = 'product_id=' . $productId . ' url=' . $productUrl;
+        $productResult = false;
+
+        if (function_exists('curl_init')) {
+            $ch = curl_init($productUrl);
+            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+            curl_setopt($ch, CURLOPT_TIMEOUT, 10);
+            curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+            curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, false);
+            curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
+            $productResult = curl_exec($ch);
+            if ($productResult === false) {
+                $origDebug .= ' | curl_error=' . curl_error($ch);
+            }
+            $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+            $origDebug .= ' | http=' . $httpCode;
+            curl_close($ch);
+        } elseif (ini_get('allow_url_fopen')) {
+            $ctx = stream_context_create(['http' => ['timeout' => 10]]);
+            $productResult = @file_get_contents($productUrl, false, $ctx);
+            if ($productResult === false) {
+                $origDebug .= ' | file_get_contents failed';
+            }
+        } else {
+            $origDebug .= ' | no curl, no allow_url_fopen';
+        }
+
         if ($productResult) {
             $productData = json_decode($productResult, true);
-            if (($productData['status'] ?? 0) === 200 && !empty($productData['data']['first_group'][0]['products'][0])) {
+            if (json_last_error() !== JSON_ERROR_NONE) {
+                $origDebug .= ' | json_error=' . json_last_error_msg();
+            } elseif (($productData['status'] ?? 0) === 200 && !empty($productData['data']['first_group'][0]['products'][0])) {
                 $origProduct = $productData['data']['first_group'][0]['products'][0];
                 $origCurrency = $productData['data']['currency'] ?? [];
+                $origDebug .= ' | OK';
+            } else {
+                $origDebug .= ' | api_status=' . ($productData['status'] ?? 'null');
             }
         }
+    } else {
+        $origDebug = 'product_id is 0 or missing';
     }
     ?>
     <!-- Breadcrumb -->
@@ -170,6 +199,7 @@ function fmtPrice($p) {
             </div>
             <?php endif; ?>
 
+            <!-- orig_product_debug: <?php echo htmlspecialchars($origDebug); ?> -->
             <?php if ($origProduct): ?>
             <div class="detail__description">
                 <h3 class="detail__section-title">原始产品信息</h3>
