@@ -63,9 +63,6 @@ function fmtPrice($p) {
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?php echo htmlspecialchars($siteName); ?> — 服务器交易市场</title>
     <meta name="description" content="<?php echo htmlspecialchars($siteConfig['seo_desc'] ?? '安全可靠的服务器与数字资产交易平台'); ?>">
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Geist+Mono:wght@300;400;500&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
     <link rel="stylesheet" href="/assets/css/style.css">
 </head>
@@ -166,17 +163,17 @@ function fmtPrice($p) {
 
 <hr class="section-divider">
 
-<!-- ===== Dark Showcase ===== -->
-<section class="dark-showcase">
-    <div class="dark-showcase-inner">
-        <div style="font-family:var(--font-display);font-size:12px;font-weight:400;color:var(--text-muted);text-transform:uppercase;letter-spacing:1.4px;margin-bottom:16px;">如何使用</div>
-        <h2 style="font-family:var(--font-display);font-size:48px;font-weight:300;color:#fff;margin-bottom:16px;line-height:1.2;">简单安全</h2>
-        <p style="font-size:16px;color:rgba(255,255,255,0.7);line-height:1.6;margin-bottom:24px;max-width:600px;">
+<!-- ===== Showcase ===== -->
+<section class="showcase">
+    <div class="showcase-inner">
+        <div style="font-size:12px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:1.5px;margin-bottom:12px;">如何使用</div>
+        <h2 style="font-size:40px;font-weight:700;color:var(--text-primary);margin-bottom:14px;line-height:1.2;">简单安全</h2>
+        <p style="font-size:16px;color:var(--text-secondary);line-height:1.7;margin-bottom:24px;max-width:600px;">
             发布您的服务器，设置价格，与买家建立联系。我们的担保系统确保双方交易安全。
         </p>
         <div style="display:flex;gap:12px;flex-wrap:wrap;">
-            <a href="/about" class="btn-primary">了解更多</a>
-            <a href="/publish" class="btn-ghost">开始出售</a>
+            <a href="/about" style="display:inline-block;padding:12px 32px;font-size:15px;font-weight:600;background:var(--primary);color:var(--white);border-radius:6px;transition:all 0.2s;">了解更多</a>
+            <a href="/publish" style="display:inline-block;padding:12px 32px;font-size:15px;font-weight:500;background:transparent;color:var(--text-secondary);border:1px solid var(--border-strong);border-radius:6px;transition:all 0.2s;">开始出售</a>
         </div>
     </div>
 </section>
