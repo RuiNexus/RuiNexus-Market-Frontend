@@ -18,11 +18,13 @@ $keyword  = trim($_GET['keyword'] ?? '');
 $size     = 15;
 
 $siteConfig = $api->getConfig()['data'] ?? [];
-$siteName   = $siteConfig['site_name'] ?? '锐翼交易市场';
+$siteName   = $siteConfig['site_name'] ?? 'RuiNexus Market';
 $notice     = $siteConfig['notice_content'] ?? '';
 $user       = Auth::getUser();
 
-$apiBaseUrl = 'https://test.ruinexus.com';
+$frontendConfig = require __DIR__ . '/../config.php';
+$apiBaseUrl = $frontendConfig['api_base_url'] ?? 'https://test.ruinexus.com';
+$siteName = $frontendConfig['site_name'] ?: $siteName;
 
 $initialPage = $page;
 $initialSort = $sort;
@@ -105,7 +107,7 @@ function fmtPrice($p) {
 
 <!-- ===== Hero ===== -->
 <section class="hero">
-    <div class="hero-label">锐翼交易市场</div>
+    <div class="hero-label"><?php echo htmlspecialchars($siteName); ?></div>
     <h1>服务器交易平台</h1>
     <p>安全可靠的服务器与数字资产交易平台。担保交易 · 安全转让 · 实时挂单。</p>
     <div class="hero-buttons">
@@ -206,7 +208,7 @@ function fmtPrice($p) {
     </div>
     <div class="footer__bottom">
         <p>&copy; <?php echo date('Y'); ?> <?php echo htmlspecialchars($siteName); ?> — 版权所有。</p>
-        <p>由锐翼科技驱动</p>
+        <p>由 <?php echo htmlspecialchars($siteName); ?> 驱动</p>
     </div>
 </footer>
 
