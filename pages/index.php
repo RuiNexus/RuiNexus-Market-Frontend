@@ -147,23 +147,6 @@ function fmtPrice($p) {
     </div>
 </section>
 
-<hr class="section-divider">
-
-<!-- ===== Showcase ===== -->
-<section class="showcase">
-    <div class="showcase-inner">
-        <div style="font-size:12px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:1.5px;margin-bottom:12px;">如何使用</div>
-        <h2 style="font-size:40px;font-weight:700;color:var(--text-primary);margin-bottom:14px;line-height:1.2;">简单安全</h2>
-        <p style="font-size:16px;color:var(--text-secondary);line-height:1.7;margin-bottom:24px;max-width:600px;">
-            发布您的服务器，设置价格，与买家建立联系。我们的担保系统确保双方交易安全。
-        </p>
-        <div style="display:flex;gap:12px;flex-wrap:wrap;">
-            <a href="/about" style="display:inline-block;padding:12px 32px;font-size:15px;font-weight:600;background:var(--primary);color:var(--white);border-radius:6px;transition:all 0.2s;">了解更多</a>
-            <a href="/publish" style="display:inline-block;padding:12px 32px;font-size:15px;font-weight:500;background:transparent;color:var(--text-secondary);border:1px solid var(--border-strong);border-radius:6px;transition:all 0.2s;">开始出售</a>
-        </div>
-    </div>
-</section>
-
 <!-- ===== Footer ===== -->
 <footer class="footer">
     <div class="footer-inner">
