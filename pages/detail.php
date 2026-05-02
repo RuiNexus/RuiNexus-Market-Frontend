@@ -118,6 +118,26 @@ function fmtPrice($p) {
     $createdDate = $createTime > 0 ? date('Y-m-d', $createTime) : '';
     $views = intval($listing['views'] ?? 0);
     $favId = 'fav-' . $listingId;
+
+    $productId = intval($listing['product_id'] ?? 0);
+    $origProduct = null;
+    if ($productId > 0) {
+        $productUrl = $apiBaseUrl . '/v1/products?product_id=' . $productId;
+        $ch = curl_init($productUrl);
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($ch, CURLOPT_TIMEOUT, 10);
+        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+        curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, false);
+        $productResult = curl_exec($ch);
+        curl_close($ch);
+        if ($productResult) {
+            $productData = json_decode($productResult, true);
+            if (($productData['status'] ?? 0) === 200 && !empty($productData['data']['first_group'][0]['products'][0])) {
+                $origProduct = $productData['data']['first_group'][0]['products'][0];
+                $origCurrency = $productData['data']['currency'] ?? [];
+            }
+        }
+    }
     ?>
     <!-- Breadcrumb -->
     <nav class="breadcrumb">
@@ -147,6 +167,32 @@ function fmtPrice($p) {
             <div class="detail__description">
                 <h3 class="detail__section-title">商品描述</h3>
                 <p><?php echo nl2br(htmlspecialchars($listing['description'])); ?></p>
+            </div>
+            <?php endif; ?>
+
+            <?php if ($origProduct): ?>
+            <div class="detail__description">
+                <h3 class="detail__section-title">原始产品信息</h3>
+                <table class="detail__specs-table">
+                    <tbody>
+                        <tr>
+                            <td class="detail__specs-label">产品名称</td>
+                            <td class="detail__specs-value"><?php echo htmlspecialchars($origProduct['name']); ?></td>
+                        </tr>
+                        <?php if (!empty($origProduct['description'])): ?>
+                        <tr>
+                            <td class="detail__specs-label">产品描述</td>
+                            <td class="detail__specs-value"><?php echo nl2br(htmlspecialchars($origProduct['description'])); ?></td>
+                        </tr>
+                        <?php endif; ?>
+                        <tr>
+                            <td class="detail__specs-label">原价</td>
+                            <td class="detail__specs-value" style="color:var(--price);font-weight:600;">
+                                <?php echo htmlspecialchars(($origCurrency['prefix'] ?? '¥') . $origProduct['product_price'] . ($origCurrency['suffix'] ?? '元')); ?>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
             </div>
             <?php endif; ?>
 
