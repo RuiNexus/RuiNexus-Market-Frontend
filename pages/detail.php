@@ -118,55 +118,7 @@ function fmtPrice($p) {
     $createdDate = $createTime > 0 ? date('Y-m-d', $createTime) : '';
     $views = intval($listing['views'] ?? 0);
     $favId = 'fav-' . $listingId;
-
     $productId = intval($listing['product_id'] ?? 0);
-    $origProduct = null;
-    $origCurrency = [];
-    $origDebug = '';
-    if ($productId > 0) {
-        $productUrl = $apiBaseUrl . '/v1/products?product_id=' . $productId;
-        $origDebug = 'product_id=' . $productId . ' url=' . $productUrl;
-        $productResult = false;
-
-        if (function_exists('curl_init')) {
-            $ch = curl_init($productUrl);
-            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-            curl_setopt($ch, CURLOPT_TIMEOUT, 10);
-            curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
-            curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, false);
-            curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
-            $productResult = curl_exec($ch);
-            if ($productResult === false) {
-                $origDebug .= ' | curl_error=' . curl_error($ch);
-            }
-            $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-            $origDebug .= ' | http=' . $httpCode;
-            curl_close($ch);
-        } elseif (ini_get('allow_url_fopen')) {
-            $ctx = stream_context_create(['http' => ['timeout' => 10]]);
-            $productResult = @file_get_contents($productUrl, false, $ctx);
-            if ($productResult === false) {
-                $origDebug .= ' | file_get_contents failed';
-            }
-        } else {
-            $origDebug .= ' | no curl, no allow_url_fopen';
-        }
-
-        if ($productResult) {
-            $productData = json_decode($productResult, true);
-            if (json_last_error() !== JSON_ERROR_NONE) {
-                $origDebug .= ' | json_error=' . json_last_error_msg();
-            } elseif (($productData['status'] ?? 0) === 200 && !empty($productData['data']['first_group'][0]['products'][0])) {
-                $origProduct = $productData['data']['first_group'][0]['products'][0];
-                $origCurrency = $productData['data']['currency'] ?? [];
-                $origDebug .= ' | OK';
-            } else {
-                $origDebug .= ' | api_status=' . ($productData['status'] ?? 'null');
-            }
-        }
-    } else {
-        $origDebug = 'product_id is 0 or missing';
-    }
     ?>
     <!-- Breadcrumb -->
     <nav class="breadcrumb">
@@ -199,32 +151,7 @@ function fmtPrice($p) {
             </div>
             <?php endif; ?>
 
-            <!-- orig_product_debug: <?php echo htmlspecialchars($origDebug); ?> -->
-            <?php if ($origProduct): ?>
-            <div class="detail__description">
-                <h3 class="detail__section-title">原始产品信息</h3>
-                <table class="detail__specs-table">
-                    <tbody>
-                        <tr>
-                            <td class="detail__specs-label">产品名称</td>
-                            <td class="detail__specs-value"><?php echo htmlspecialchars($origProduct['name']); ?></td>
-                        </tr>
-                        <?php if (!empty($origProduct['description'])): ?>
-                        <tr>
-                            <td class="detail__specs-label">产品描述</td>
-                            <td class="detail__specs-value"><?php echo nl2br(htmlspecialchars($origProduct['description'])); ?></td>
-                        </tr>
-                        <?php endif; ?>
-                        <tr>
-                            <td class="detail__specs-label">原价</td>
-                            <td class="detail__specs-value" style="color:var(--price);font-weight:600;">
-                                <?php echo htmlspecialchars(($origCurrency['prefix'] ?? '¥') . $origProduct['product_price'] . ($origCurrency['suffix'] ?? '元')); ?>
-                            </td>
-                        </tr>
-                    </tbody>
-                </table>
-            </div>
-            <?php endif; ?>
+            <div id="origProductInfo" style="display:none;"></div>
 
             <?php if (!empty($specData)): ?>
             <div class="detail__specs">
@@ -374,8 +301,47 @@ function fmtPrice($p) {
 <script>
 const API_BASE = '<?php echo htmlspecialchars($apiBaseUrl); ?>';
 const LISTING_ID = <?php echo $listingId; ?>;
+const PRODUCT_ID = <?php echo $productId; ?>;
 const IS_FAVORITED = <?php echo !empty($listing['is_favorited']) ? 'true' : 'false'; ?>;
 const IS_LOGGED_IN = <?php echo $user['loggedIn'] ? 'true' : 'false'; ?>;
+
+function loadOrigProduct() {
+    if (PRODUCT_ID <= 0) return;
+
+    const url = `${API_BASE}/v1/products?product_id=${PRODUCT_ID}`;
+    fetch(url)
+        .then(r => r.json())
+        .then(data => {
+            if (data.status !== 200 || !data.data) return;
+            const group = data.data.first_group;
+            if (!group || !group[0] || !group[0].products || !group[0].products[0]) return;
+            const prod = group[0].products[0];
+            const cur = data.data.currency || {};
+            const prefix = cur.prefix || '¥';
+            const suffix = cur.suffix || '元';
+
+            let html = '<div class="detail__description">';
+            html += '<h3 class="detail__section-title">原始产品信息</h3>';
+            html += '<table class="detail__specs-table"><tbody>';
+            html += `<tr><td class="detail__specs-label">产品名称</td><td class="detail__specs-value">${escapeHtml(prod.name)}</td></tr>`;
+            if (prod.description) {
+                html += `<tr><td class="detail__specs-label">产品描述</td><td class="detail__specs-value">${escapeHtml(prod.description).replace(/\n/g, '<br>')}</td></tr>`;
+            }
+            html += `<tr><td class="detail__specs-label">原价</td><td class="detail__specs-value" style="color:var(--price);font-weight:600;">${escapeHtml(prefix + prod.product_price + suffix)}</td></tr>`;
+            html += '</tbody></table></div>';
+
+            const el = document.getElementById('origProductInfo');
+            el.innerHTML = html;
+            el.style.display = '';
+        })
+        .catch(() => {});
+}
+
+function escapeHtml(str) {
+    const div = document.createElement('div');
+    div.textContent = str || '';
+    return div.innerHTML;
+}
 
 function toggleFavorite() {
     if (!IS_LOGGED_IN) {
@@ -446,6 +412,8 @@ function buyListing() {
         alert('网络错误: ' + err.message);
     });
 }
+
+document.addEventListener('DOMContentLoaded', loadOrigProduct);
 </script>
 <?php endif; ?>
 
