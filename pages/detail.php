@@ -313,9 +313,11 @@ function loadOrigProduct() {
         .then(r => r.json())
         .then(data => {
             if (data.status !== 200 || !data.data) return;
-            const group = data.data.first_group;
-            if (!group || !group[0] || !group[0].products || !group[0].products[0]) return;
-            const prod = group[0].products[0];
+            const fg = data.data.first_group;
+            if (!fg || !fg[0]) return;
+            const sg = fg[0].group;
+            if (!sg || !sg[0] || !sg[0].products || !sg[0].products[0]) return;
+            const prod = sg[0].products[0];
             const cur = data.data.currency || {};
             const prefix = cur.prefix || '¥';
             const suffix = cur.suffix || '元';
