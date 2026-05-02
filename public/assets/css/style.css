@@ -548,6 +548,281 @@ img { max-width: 100%; height: auto; }
 
 .showcase-inner { max-width: var(--max-width); margin: 0 auto; }
 
+/* ===== Breadcrumb ===== */
+.breadcrumb {
+    display: flex; align-items: center; gap: 8px;
+    font-size: 14px; color: var(--text-muted);
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+}
+
+.breadcrumb a {
+    color: var(--text-secondary);
+    transition: color 0.15s;
+}
+
+.breadcrumb a:hover { color: var(--primary); }
+
+.breadcrumb__sep { margin: 0 2px; color: var(--text-disabled); }
+
+.breadcrumb__current { color: var(--text-primary); font-weight: 500; }
+
+/* ===== Detail Layout ===== */
+.detail {
+    display: flex; gap: 28px;
+    align-items: flex-start;
+}
+
+.detail__main {
+    flex: 1; min-width: 0;
+}
+
+.detail__sidebar {
+    width: 340px; flex-shrink: 0;
+    position: sticky; top: calc(var(--nav-height) + 20px);
+}
+
+/* ===== Detail Title ===== */
+.detail__title {
+    font-size: 26px; font-weight: 700; line-height: 1.3;
+    color: var(--text-primary);
+    margin-bottom: 16px;
+}
+
+/* ===== Detail Tags ===== */
+.detail__tags {
+    display: flex; align-items: center; gap: 8px;
+    margin-bottom: 24px;
+    flex-wrap: wrap;
+}
+
+/* ===== Detail Section Title ===== */
+.detail__section-title {
+    font-size: 16px; font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: 12px;
+}
+
+/* ===== Detail Description ===== */
+.detail__description {
+    margin-bottom: 28px;
+}
+
+.detail__description p {
+    font-size: 15px; line-height: 1.8;
+    color: var(--text-secondary);
+    white-space: pre-line;
+}
+
+/* ===== Detail Specs Table ===== */
+.detail__specs {
+    margin-bottom: 28px;
+}
+
+.detail__specs-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.detail__specs-table tr {
+    border-bottom: 1px solid var(--border);
+}
+
+.detail__specs-table tr:last-child {
+    border-bottom: none;
+}
+
+.detail__specs-label {
+    padding: 12px 16px 12px 0;
+    font-size: 14px; color: var(--text-muted);
+    width: 120px; white-space: nowrap;
+    vertical-align: middle;
+}
+
+.detail__specs-value {
+    padding: 12px 0;
+    font-size: 14px; color: var(--text-secondary);
+    font-weight: 500;
+    vertical-align: middle;
+}
+
+/* ===== Detail Remaining ===== */
+.detail__remaining {
+    margin-bottom: 28px;
+}
+
+.detail__remaining .card__remaining-bar {
+    max-width: 480px;
+}
+
+/* ===== Detail Card (Sidebar) ===== */
+.detail__card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--border-radius);
+    padding: 24px;
+    margin-bottom: 16px;
+}
+
+/* ===== Detail Price Block ===== */
+.detail__price-block {
+    margin-bottom: 20px;
+    padding-bottom: 20px;
+    border-bottom: 1px solid var(--border);
+}
+
+.detail__price-main {
+    display: flex; align-items: baseline; gap: 4px;
+    margin-bottom: 8px;
+}
+
+.detail__price-symbol {
+    font-size: 18px; color: var(--price); font-weight: 700;
+}
+
+.detail__price-amount {
+    font-size: 36px; color: var(--price); font-weight: 700; line-height: 1;
+}
+
+.detail__price-unit {
+    font-size: 14px; color: var(--text-muted);
+    margin-left: 4px;
+}
+
+.detail__price-original-line {
+    display: flex; align-items: center; gap: 10px;
+    flex-wrap: wrap;
+}
+
+.detail__price-original {
+    font-size: 14px; color: var(--price-original);
+    text-decoration: line-through;
+}
+
+/* ===== Detail Seller ===== */
+.detail__seller {
+    display: flex; align-items: center; gap: 12px;
+    margin-bottom: 20px;
+    padding-bottom: 20px;
+    border-bottom: 1px solid var(--border);
+}
+
+.detail__seller-icon {
+    font-size: 36px; color: var(--text-muted);
+}
+
+.detail__seller-info {
+    display: flex; flex-direction: column;
+}
+
+.detail__seller-label {
+    font-size: 12px; color: var(--text-muted);
+    text-transform: uppercase; letter-spacing: 0.5px;
+}
+
+.detail__seller-name {
+    font-size: 16px; font-weight: 600;
+    color: var(--text-primary);
+}
+
+/* ===== Detail Actions ===== */
+.detail__actions {
+    display: flex; flex-direction: column; gap: 10px;
+    margin-bottom: 16px;
+}
+
+.detail__btn {
+    display: flex; align-items: center; justify-content: center; gap: 8px;
+    width: 100%; padding: 14px 20px;
+    font-family: var(--font); font-size: 15px; font-weight: 600;
+    border-radius: var(--border-radius);
+    border: 1px solid var(--border-strong);
+    cursor: pointer;
+    transition: all 0.2s;
+    text-decoration: none;
+}
+
+.detail__btn--buy {
+    background: var(--primary); color: var(--white);
+    border-color: var(--primary);
+    font-size: 16px;
+}
+
+.detail__btn--buy:hover {
+    background: var(--primary-dark);
+    border-color: var(--primary-dark);
+    color: var(--white);
+}
+
+.detail__btn--fav {
+    background: var(--white); color: var(--text-secondary);
+}
+
+.detail__btn--fav:hover {
+    border-color: var(--danger);
+    color: var(--danger);
+}
+
+.detail__btn--fav.is-active {
+    border-color: var(--danger); color: var(--danger);
+    background: rgba(231,76,60,0.04);
+}
+
+.detail__btn--fav:disabled {
+    opacity: 0.5; cursor: not-allowed;
+}
+
+.detail__btn--back {
+    background: var(--white); color: var(--text-secondary);
+}
+
+.detail__btn--back:hover {
+    border-color: var(--primary);
+    color: var(--primary);
+}
+
+/* ===== Detail Meta ===== */
+.detail__meta {
+    display: flex; flex-direction: column; gap: 6px;
+    font-size: 13px; color: var(--text-muted);
+}
+
+.detail__meta-item {
+    display: flex; align-items: center; gap: 6px;
+}
+
+/* ===== Detail Tips ===== */
+.detail__tips-title {
+    font-size: 14px; font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: 12px;
+    display: flex; align-items: center; gap: 8px;
+}
+
+.detail__tips-title i {
+    color: var(--primary);
+}
+
+.detail__tips-list {
+    list-style: none;
+    display: flex; flex-direction: column; gap: 8px;
+}
+
+.detail__tips-list li {
+    font-size: 13px; color: var(--text-muted);
+    line-height: 1.6;
+    padding-left: 14px;
+    position: relative;
+}
+
+.detail__tips-list li::before {
+    content: ''; position: absolute;
+    left: 0; top: 8px;
+    width: 4px; height: 4px;
+    background: var(--text-disabled);
+    border-radius: 0px;
+}
+
 /* ===== Footer ===== */
 .footer {
     padding: 44px 24px 28px;
@@ -611,4 +886,8 @@ img { max-width: 100%; height: auto; }
     .toolbar__total { margin-left: 0; }
     .footer { padding: 28px 16px 20px; }
     .footer-inner { flex-direction: column; gap: 28px; }
+    .detail { flex-direction: column; }
+    .detail__sidebar { width: 100%; position: static; }
+    .detail__title { font-size: 22px; }
+    .detail__specs-label { width: 90px; }
 }
