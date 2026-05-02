@@ -153,6 +153,20 @@ class Auth
     }
 
     /**
+     * 浏览器端 JWT 扫描 JS 代码（前端 fallback）
+     *
+     * PHP 端 $_COOKIE 在跨子域（Cookie 域未设为 .xxx.com）时可能读不到，
+     * 此时浏览器端 document.cookie 仍可访问。调用此方法输出 JS 代码后，
+     * 可通过 window.__marketUser 获取用户状态。
+     *
+     * 用法: 在页面 <script> 中 <?php echo Auth::jsSnippet(); ?>
+     */
+    public static function jsSnippet()
+    {
+        return "(function(){var c=document.cookie.split(';');for(var i=0;i<c.length;i++){var v=c[i].trim();var e=v.indexOf('=');if(e===-1)continue;v=v.substring(e+1);if(v.length<20||v.length>2000)continue;var p=v.split('.');if(p.length!==3||!p[0]||!p[1]||!p[2])continue;try{var d=JSON.parse(atob(p[1].replace(/-/g,'+').replace(/_/g,'/')));if(d.userinfo&&d.userinfo.id){window.__marketUser={id:d.userinfo.id,username:d.userinfo.username||'',loggedIn:true};return;}}catch(ex){}}window.__marketUser={id:0,username:'',loggedIn:false};})();";
+    }
+
+    /**
      * 获取登录跳转 URL
      */
     public static function getLoginUrl($apiBaseUrl)

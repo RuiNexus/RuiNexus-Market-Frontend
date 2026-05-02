@@ -416,6 +416,7 @@ function buyListing() {
 }
 
 document.addEventListener('DOMContentLoaded', loadOrigProduct);
+<?php echo \Market\Auth::jsSnippet(); ?>
 </script>
 <?php endif; ?>
 
