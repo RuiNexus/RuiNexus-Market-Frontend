@@ -155,16 +155,18 @@ function formatPrice($price) {
                     $itemSpecLabels = $item['spec_labels'] ?? $specLabels;
 
                     $remainingDays = $item['remaining_days'] ?? null;
-                    $durationDays = $item['duration_days'] ?? 0;
+                    $regdate = $item['regdate'] ?? 0;
+                    $nextduedate = $item['nextduedate'] ?? 0;
+                    $durationDays = ($regdate > 0 && $nextduedate > $regdate) ? round(($nextduedate - $regdate) / 86400) : 0;
                     $hasRemaining = $remainingDays !== null && $durationDays > 0;
                     $remainingPct = $hasRemaining ? min(100, round($remainingDays / max($durationDays, 1) * 100)) : 0;
                     $remClass = remainingClass($remainingPct);
 
                     $billingLabel = billingCycleLabel($item['billing_cycle'] ?? '');
-                    $discount = discountRate($item['sale_price'] ?? 0, $item['original_price'] ?? 0);
+                    $discount = discountRate($item['sale_price'] ?? 0, $item['original_amount'] ?? 0);
 
-                    $createdTime = $item['created_at'] ?? '';
-                    $createdDate = $createdTime ? date('Y-m-d', strtotime($createdTime)) : '';
+                    $createTime = $item['create_time'] ?? 0;
+                    $createdDate = $createTime > 0 ? date('Y-m-d', $createTime) : '';
                     $views = intval($item['views'] ?? 0);
                 ?>
                 <article class="market-product-card" onclick="location.href='/detail?id=<?php echo $item['id']; ?>'">
@@ -187,9 +189,6 @@ function formatPrice($price) {
                         <span class="market-product-card__tag market-product-card__tag--days <?php echo $remClass; ?>">
                             剩余<?php echo $remainingDays; ?>天
                         </span>
-                        <?php endif; ?>
-                        <?php if (!empty($item['description'])): ?>
-                        <span class="market-product-card__desc-text"><?php echo htmlspecialchars(mb_substr($item['description'], 0, 60)); ?><?php echo mb_strlen($item['description']) > 60 ? '...' : ''; ?></span>
                         <?php endif; ?>
                     </div>
 
@@ -246,8 +245,8 @@ function formatPrice($price) {
                         <span class="market-product-card__price-symbol">¥</span>
                         <span class="market-product-card__price-amount"><?php echo formatPrice($item['sale_price'] ?? 0); ?></span>
                         <span class="market-product-card__price-unit">元</span>
-                        <?php if (($item['original_price'] ?? 0) > 0 && $item['sale_price'] != $item['original_price']): ?>
-                        <span class="market-product-card__original-price">¥<?php echo formatPrice($item['original_price'] ?? 0); ?></span>
+                        <?php if (($item['original_amount'] ?? 0) > 0 && $item['sale_price'] != $item['original_amount']): ?>
+                        <span class="market-product-card__original-price">¥<?php echo formatPrice($item['original_amount'] ?? 0); ?></span>
                         <?php endif; ?>
                     </div>
                 </article>
