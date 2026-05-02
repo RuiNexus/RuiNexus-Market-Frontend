@@ -327,7 +327,7 @@ function loadOrigProduct() {
             html += '<table class="detail__specs-table"><tbody>';
             html += `<tr><td class="detail__specs-label">产品名称</td><td class="detail__specs-value">${escapeHtml(prod.name)}</td></tr>`;
             if (prod.description) {
-                html += `<tr><td class="detail__specs-label">产品描述</td><td class="detail__specs-value">${escapeHtml(prod.description).replace(/\n/g, '<br>')}</td></tr>`;
+                html += `<tr><td class="detail__specs-label">产品描述</td><td class="detail__specs-value">${(prod.description).replace(/\n/g, '<br>')}</td></tr>`;
             }
             html += `<tr><td class="detail__specs-label">原价</td><td class="detail__specs-value" style="color:var(--price);font-weight:600;">${escapeHtml(prefix + prod.product_price + suffix)}</td></tr>`;
             html += '</tbody></table></div>';
