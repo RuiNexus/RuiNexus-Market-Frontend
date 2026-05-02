@@ -102,22 +102,6 @@ function fmtPrice($p) {
     </div>
 </div>
 
-<!-- ===== Hero ===== -->
-<section class="hero">
-    <div class="hero-label"><?php echo htmlspecialchars($siteName); ?></div>
-    <h1>服务器交易平台</h1>
-    <p>安全可靠的服务器与数字资产交易平台。担保交易 · 安全转让 · 实时挂单。</p>
-    <div class="hero-buttons">
-        <?php if ($user['loggedIn']): ?>
-            <a href="/publish" class="btn-primary">立即发布</a>
-            <a href="/user/listings" class="btn-ghost">我的商品</a>
-        <?php else: ?>
-            <a href="<?php echo Auth::getRegisterUrl($apiBase); ?>" class="btn-primary">立即开始</a>
-            <a href="/about" class="btn-ghost">了解更多</a>
-        <?php endif; ?>
-    </div>
-</section>
-
 <!-- ===== Products Section ===== -->
 <section class="section">
     <div class="section-label">01 / 商品</div>
