@@ -401,7 +401,7 @@ document.getElementById('searchForm').addEventListener('submit', (e) => {
 });
 
 document.addEventListener('DOMContentLoaded', loadProducts);
-<?php echo \Market\Auth::jsSnippet(); ?>
+<?php echo \Market\Auth::jsSnippet($apiBaseUrl); ?>
 </script>
 
 </body>
