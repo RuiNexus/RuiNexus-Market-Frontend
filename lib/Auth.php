@@ -153,19 +153,20 @@ class Auth
     }
 
     /**
-     * 浏览器端 JWT 验证 JS 代码（前端 fallback）
+     * 浏览器端认证 + UI 更新 JS 代码
      *
-     * Cookie 域为精确匹配（test.ruinexus.com）时，子域（market.test.ruinexus.com）
-     * 的 document.cookie 无法访问。通过 fetch 目标域 API，浏览器自动携带该域 Cookie。
+     * fetch /me 端点 → 设置 window.__marketUser → 更新页面导航栏和按钮
      *
-     * @param string $apiBase 魔方 API 基础 URL（如 https://test.ruinexus.com）
+     * @param string $apiBase 魔方 API 基础 URL
      *
      * 用法: <?php echo Auth::jsSnippet($apiBaseUrl); ?>
      */
     public static function jsSnippet($apiBase)
     {
         $url = rtrim($apiBase, '/') . '/market_api.php?action=me';
-        return "(function(){fetch('" . $url . "',{credentials:'include'}).then(function(r){return r.json()}).then(function(d){if(d.status===200&&d.data){window.__marketUser=d.data}else{window.__marketUser={id:0,username:'',loggedIn:false}}}).catch(function(){window.__marketUser={id:0,username:'',loggedIn:false}})})();";
+        $loginUrl = self::getLoginUrl($apiBase);
+        $regUrl = self::getRegisterUrl($apiBase);
+        return "(function(){var api='" . $url . "';var loginUrl='" . $loginUrl . "';var regUrl='" . $regUrl . "';function updateNav(user){var na=document.querySelector('.nav-actions');if(!na)return;if(user.loggedIn){na.innerHTML='<a href=\"/publish\" class=\"nav-cta\">发布</a><a href=\"/user/listings\" class=\"nav-cta--ghost\">我的</a><a href=\"/user/orders\" class=\"nav-cta--ghost\">订单</a>'}else{na.innerHTML='<a href=\"'+loginUrl+'\" class=\"nav-cta--ghost\">登录</a><a href=\"'+regUrl+'\" class=\"nav-cta\">注册</a>'}}function updateDetail(user){var da=document.querySelector('.detail__actions');if(!da)return;if(user.loggedIn){var bb=da.querySelector('.detail__btn--buy');if(bb&&bb.tagName==='A'){var btn=document.createElement('button');btn.className='detail__btn detail__btn--buy';btn.setAttribute('onclick','buyListing()');btn.innerHTML='<i class=\"fas fa-shopping-cart\"></i> 立即购买';bb.parentNode.replaceChild(btn,bb)}var fb=document.getElementById('favBtn');if(fb){fb.disabled=false;fb.removeAttribute('title')}}else{var bb2=da.querySelector('.detail__btn--buy');if(bb2&&bb2.tagName==='BUTTON'){var a=document.createElement('a');a.className='detail__btn detail__btn--buy';a.href=loginUrl;a.innerHTML='<i class=\"fas fa-sign-in-alt\"></i> 登录后购买';bb2.parentNode.replaceChild(a,bb2)}var fb2=document.getElementById('favBtn');if(fb2){fb2.disabled=true;fb2.setAttribute('title','请先登录')}}}fetch(api,{credentials:'include'}).then(function(r){return r.json()}).then(function(d){var user=d.status===200&&d.data?d.data:{id:0,username:'',loggedIn:false};window.__marketUser=user;updateNav(user);updateDetail(user)}).catch(function(){window.__marketUser={id:0,username:'',loggedIn:false}})})();";
     }
 
     /**
