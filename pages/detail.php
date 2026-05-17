@@ -345,8 +345,12 @@ function escapeHtml(str) {
     return div.innerHTML;
 }
 
+function isLoggedIn() {
+    return (window.__marketUser && window.__marketUser.loggedIn) || IS_LOGGED_IN;
+}
+
 function toggleFavorite() {
-    if (!IS_LOGGED_IN) {
+    if (!isLoggedIn()) {
         alert('请先登录');
         return;
     }
@@ -359,6 +363,7 @@ function toggleFavorite() {
 
     fetch(`${API_BASE}/market_api.php?action=favorite&id=${LISTING_ID}`, {
         method: 'POST',
+        credentials: 'include',
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
     })
     .then(r => r.json())
@@ -392,6 +397,7 @@ function buyListing() {
 
     fetch(`${API_BASE}/market_api.php?action=buy`, {
         method: 'POST',
+        credentials: 'include',
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
         body: `listing_id=${LISTING_ID}&pay_type=online`,
     })
