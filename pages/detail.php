@@ -151,6 +151,13 @@ function fmtPrice($p) {
             </div>
             <?php endif; ?>
 
+            <?php if (!empty($listing['notes'])): ?>
+            <div class="detail__notes">
+                <h3 class="detail__section-title"><i class="fas fa-sticky-note"></i> 卖家备注</h3>
+                <div class="detail__notes-content"><?php echo nl2br(htmlspecialchars($listing['notes'])); ?></div>
+            </div>
+            <?php endif; ?>
+
             <div id="origProductInfo" style="display:none;"></div>
 
             <?php if (!empty($specData)): ?>

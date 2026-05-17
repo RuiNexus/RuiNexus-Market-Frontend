@@ -1,11 +1,5 @@
 <?php
 
-/**
- * RuiNexus Market - 发布商品页
- *
- * 开发者: RuiNexus / YeHuaiJing
- */
-
 use Market\Auth;
 
 $uid = Auth::getUid();
@@ -14,123 +8,384 @@ if (!$uid) {
     exit;
 }
 
-$hostsResult = $api->getMyHosts();
-$hosts = $hostsResult['data'] ?? [];
 $siteConfig = $api->getConfig()['data'] ?? [];
 $siteName   = $siteConfig['site_name'] ?? 'RuiNexus Market';
-?>
-<!DOCTYPE html>
+$notice     = $siteConfig['notice_content'] ?? '';
+$user       = Auth::getUser();
+
+$frontendConfig = require __DIR__ . '/../config.php';
+$apiBaseUrl = $frontendConfig['api_base_url'] ?? 'https://test.ruinexus.com';
+$siteName = $frontendConfig['site_name'] ?: $siteName;
+
+$hostsResult = $api->getMyHosts();
+$hosts = $hostsResult['data'] ?? [];
+
+$fieldsResult = $api->get('fields');
+$specFields = $fieldsResult['data'] ?? [];
+
+function billingLabel($cycle) {
+    $map = [
+        'monthly' => '月付', 'quarterly' => '季付',
+        'semiannually' => '半年付', 'annually' => '年付',
+        'biennially' => '两年付', 'triennially' => '三年付',
+        'onetime' => '永久', 'free' => '免费',
+    ];
+    return $map[$cycle] ?? strtoupper($cycle);
+}
+
+function fmtPrice($p) {
+    return ($p == intval($p)) ? number_format($p) : number_format($p, 2);
+}
+?><!DOCTYPE html>
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>发布商品 - <?php echo htmlspecialchars($siteName); ?></title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
     <link rel="stylesheet" href="/assets/css/style.css">
 </head>
 <body>
-<header class="header">
-    <div class="container">
-        <a href="/" class="logo"><?php echo htmlspecialchars($siteName); ?></a>
-        <nav>
-            <a href="/">首页</a>
-        </nav>
-    </div>
-</header>
 
-<main class="container publish-page">
-    <h1>发布二手服务器</h1>
-
-    <div class="host-select">
-        <h3>选择要出售的服务器</h3>
-        <?php if (empty($hosts)): ?>
-            <p>您没有可出售的服务器（需状态为 Active 且不在交易黑名单中）</p>
+<nav class="nav">
+    <a href="<?php echo htmlspecialchars($apiBaseUrl); ?>" class="nav-logo">
+        <img src="<?php echo htmlspecialchars($apiBaseUrl); ?>/themes/clientarea/default/assets/images/logo-inovice.png" alt="<?php echo htmlspecialchars($siteName); ?>">
+    </a>
+    <ul class="nav-links">
+        <li><a href="/">市场</a></li>
+        <li><a href="/publish" class="active">发布</a></li>
+    </ul>
+    <div class="nav-actions">
+        <?php if ($user['loggedIn']): ?>
+            <a href="/publish" class="nav-cta">发布</a>
+            <a href="/user/listings" class="nav-cta--ghost">我的</a>
+            <a href="/user/orders" class="nav-cta--ghost">订单</a>
         <?php else: ?>
-        <table>
-            <thead>
-                <tr>
-                    <th>选择</th>
-                    <th>产品</th>
-                    <th>IP</th>
-                    <th>操作系统</th>
-                    <th>到期时间</th>
-                    <th>原始价格</th>
-                </tr>
-            </thead>
-            <tbody>
-                <?php foreach ($hosts as $h): ?>
-                <tr>
-                    <td>
-                        <?php if ($h['is_on_sale']): ?>
-                            <span class="hint">已在售</span>
-                        <?php else: ?>
-                            <input type="radio" name="host_id" value="<?php echo $h['id']; ?>" onclick="selectHost(<?php echo $h['id']; ?>, '<?php echo htmlspecialchars($h['product_name'] ?? ''); ?>', <?php echo number_format($h['original_amount'], 2, '.', ''); ?>)">
-                        <?php endif; ?>
-                    </td>
-                    <td><?php echo htmlspecialchars($h['product_name'] ?? ''); ?></td>
-                    <td><?php echo htmlspecialchars($h['dedicatedip'] ?? ''); ?></td>
-                    <td><?php echo htmlspecialchars($h['os'] ?? ''); ?></td>
-                    <td><?php echo $h['nextduedate'] ? date('Y-m-d', $h['nextduedate']) : '不到期'; ?></td>
-                    <td>¥<?php echo number_format($h['original_amount'], 2); ?></td>
-                </tr>
-                <?php endforeach; ?>
-            </tbody>
-        </table>
+            <a href="<?php echo Auth::getLoginUrl($apiBaseUrl); ?>" class="nav-cta--ghost">登录</a>
+            <a href="<?php echo Auth::getRegisterUrl($apiBaseUrl); ?>" class="nav-cta">注册</a>
         <?php endif; ?>
     </div>
+</nav>
 
-    <form id="publish-form" onsubmit="publishItem(event)" style="display:none;">
-        <input type="hidden" name="host_id" id="form-host-id">
-        <div class="form-group">
-            <label>标题</label>
-            <input type="text" name="title" id="form-title" required placeholder="如: 日本BGP线路 全系统可win">
+<?php if ($notice): ?>
+<div class="site-notice"><?php echo nl2br(htmlspecialchars($notice)); ?></div>
+<?php endif; ?>
+
+<section class="section">
+    <div class="section-label">02 / PUBLISH</div>
+    <h2 class="section-title">发布二手服务器</h2>
+
+    <div class="publish">
+        <div class="publish__step">
+            <h3 class="publish__step-title"><span class="publish__step-num">1</span> 选择要出售的服务器</h3>
+
+            <?php if (empty($hosts)): ?>
+            <div class="empty">
+                <div class="empty__icon"><i class="fas fa-server"></i></div>
+                <p>您没有可出售的服务器（需状态为 Active 且不在交易黑名单中）</p>
+            </div>
+            <?php else: ?>
+            <div class="publish__hosts">
+                <?php foreach ($hosts as $h): ?>
+                <?php
+                $remainingDays = $h['remaining_days'];
+                $billingTag = billingLabel($h['billingcycle'] ?? '');
+                $isOnSale = !empty($h['is_on_sale']);
+                ?>
+                <div class="publish__host-card <?php echo $isOnSale ? 'is-disabled' : ''; ?>" data-host-id="<?php echo $h['id']; ?>" data-product-name="<?php echo htmlspecialchars($h['product_name'] ?? ''); ?>" data-original-amount="<?php echo number_format($h['original_amount'], 2, '.', ''); ?>" data-billing-cycle="<?php echo htmlspecialchars($h['billingcycle'] ?? ''); ?>" onclick="<?php echo $isOnSale ? '' : 'selectHost(this)'; ?>">
+                    <div class="publish__host-radio">
+                        <?php if ($isOnSale): ?>
+                            <span class="publish__host-onsale"><i class="fas fa-tag"></i> 在售</span>
+                        <?php else: ?>
+                            <i class="far fa-circle publish__host-unchecked"></i>
+                            <i class="fas fa-check-circle publish__host-checked" style="display:none;"></i>
+                        <?php endif; ?>
+                    </div>
+                    <div class="publish__host-info">
+                        <div class="publish__host-name"><?php echo htmlspecialchars($h['product_name'] ?? ''); ?></div>
+                        <div class="publish__host-meta">
+                            <?php if ($billingTag): ?><span class="card__tag"><?php echo htmlspecialchars($billingTag); ?></span><?php endif; ?>
+                            <?php if ($remainingDays !== null && $remainingDays > 0): ?>
+                            <span class="card__tag card__tag--days <?php echo $remainingDays > 65 ? 'is-safe' : ($remainingDays > 30 ? 'is-warning' : 'is-danger'); ?>"><?php echo $remainingDays; ?> 天剩余</span>
+                            <?php elseif ($remainingDays === null): ?>
+                            <span class="card__tag">永久有效</span>
+                            <?php endif; ?>
+                        </div>
+                    </div>
+                    <div class="publish__host-price">
+                        <span class="publish__host-price-label">原价</span>
+                        <span class="publish__host-price-value">¥<?php echo htmlspecialchars(fmtPrice(floatval($h['original_amount'] ?? 0))); ?></span>
+                    </div>
+                </div>
+                <?php endforeach; ?>
+            </div>
+            <?php endif; ?>
         </div>
-        <div class="form-group">
-            <label>售价 (元)</label>
-            <input type="number" name="sale_price" id="form-price" required step="0.01" placeholder="输入您期望的售价">
+
+        <div id="publishForm" class="publish__step" style="display:none;">
+            <h3 class="publish__step-title"><span class="publish__step-num">2</span> 填写商品信息</h3>
+
+            <div class="publish__form">
+                <input type="hidden" id="formHostId" value="">
+
+                <div class="publish__field">
+                    <label class="publish__label">标题</label>
+                    <input type="text" id="formTitle" class="publish__input" placeholder="如: 日本BGP线路 全系统可win" required>
+                </div>
+
+                <div class="publish__field">
+                    <label class="publish__label">售价 (CNY)</label>
+                    <div class="publish__price-row">
+                        <span class="publish__price-symbol">¥</span>
+                        <input type="number" id="formPrice" class="publish__input publish__input--price" step="0.01" min="0.01" placeholder="输入您期望的售价" required>
+                        <span class="publish__price-hint" id="priceHint"></span>
+                    </div>
+                </div>
+
+                <div class="publish__field">
+                    <label class="publish__label">描述</label>
+                    <textarea id="formDesc" class="publish__textarea" rows="4" placeholder="可填写服务器线路、性能等补充信息"></textarea>
+                </div>
+
+                <div class="publish__field">
+                    <label class="publish__label">卖家备注 <span style="color:var(--muted);font-weight:normal;">（买家可见）</span></label>
+                    <textarea id="formNotes" class="publish__textarea" rows="3" placeholder="给买家看的备注信息，如特殊说明、注意事项等"></textarea>
+                </div>
+
+                <?php if (!empty($specFields)): ?>
+                <div class="publish__field">
+                    <label class="publish__label">配置信息</label>
+                    <div class="publish__specs" id="specFieldsContainer">
+                        <?php foreach ($specFields as $field): ?>
+                        <div class="publish__spec-field" data-field-name="<?php echo htmlspecialchars($field['field_name']); ?>" data-field-type="<?php echo htmlspecialchars($field['field_type']); ?>" data-is-required="<?php echo intval($field['is_required']); ?>">
+                            <label class="publish__spec-label">
+                                <?php echo htmlspecialchars($field['field_label']); ?>
+                                <?php if ($field['is_required']): ?><span class="publish__required">*</span><?php endif; ?>
+                            </label>
+                            <?php if ($field['field_type'] === 'input'): ?>
+                            <input type="text" class="publish__input publish__spec-input" data-field="<?php echo htmlspecialchars($field['field_name']); ?>" placeholder="请输入<?php echo htmlspecialchars($field['field_label']); ?>">
+                            <?php elseif ($field['field_type'] === 'dropdown'): ?>
+                            <?php $options = is_string($field['field_options']) ? json_decode($field['field_options'], true) : ($field['field_options'] ?? []); ?>
+                            <select class="publish__input publish__spec-input" data-field="<?php echo htmlspecialchars($field['field_name']); ?>">
+                                <option value="">请选择</option>
+                                <?php foreach (($options ?? []) as $opt): ?>
+                                <option value="<?php echo htmlspecialchars(is_array($opt) ? ($opt['value'] ?? $opt) : $opt); ?>"><?php echo htmlspecialchars(is_array($opt) ? ($opt['label'] ?? $opt['value'] ?? '') : $opt); ?></option>
+                                <?php endforeach; ?>
+                            </select>
+                            <?php elseif ($field['field_type'] === 'radio'): ?>
+                            <?php $options = is_string($field['field_options']) ? json_decode($field['field_options'], true) : ($field['field_options'] ?? []); ?>
+                            <div class="publish__radio-group">
+                                <?php foreach (($options ?? []) as $i => $opt): ?>
+                                <label class="publish__radio-item">
+                                    <input type="radio" name="spec_<?php echo htmlspecialchars($field['field_name']); ?>" class="publish__spec-input" data-field="<?php echo htmlspecialchars($field['field_name']); ?>" value="<?php echo htmlspecialchars(is_array($opt) ? ($opt['value'] ?? $opt) : $opt); ?>">
+                                    <span><?php echo htmlspecialchars(is_array($opt) ? ($opt['label'] ?? $opt['value'] ?? '') : $opt); ?></span>
+                                </label>
+                                <?php endforeach; ?>
+                            </div>
+                            <?php elseif ($field['field_type'] === 'checkbox'): ?>
+                            <?php $options = is_string($field['field_options']) ? json_decode($field['field_options'], true) : ($field['field_options'] ?? []); ?>
+                            <div class="publish__checkbox-group">
+                                <?php foreach (($options ?? []) as $i => $opt): ?>
+                                <label class="publish__checkbox-item">
+                                    <input type="checkbox" class="publish__spec-input" data-field="<?php echo htmlspecialchars($field['field_name']); ?>" value="<?php echo htmlspecialchars(is_array($opt) ? ($opt['value'] ?? $opt) : $opt); ?>">
+                                    <span><?php echo htmlspecialchars(is_array($opt) ? ($opt['label'] ?? $opt['value'] ?? '') : $opt); ?></span>
+                                </label>
+                                <?php endforeach; ?>
+                            </div>
+                            <?php endif; ?>
+                        </div>
+                        <?php endforeach; ?>
+                    </div>
+                </div>
+                <?php endif; ?>
+
+                <div class="publish__actions">
+                    <button type="button" class="detail__btn detail__btn--buy" onclick="submitPublish()">
+                        <i class="fas fa-paper-plane"></i> 确认发布
+                    </button>
+                    <button type="button" class="detail__btn detail__btn--back" onclick="resetForm()">
+                        <i class="fas fa-arrow-left"></i> 重新选择
+                    </button>
+                </div>
+            </div>
         </div>
-        <div class="form-group">
-            <label>描述</label>
-            <textarea name="description" rows="4" placeholder="可填写服务器线路、性能等补充信息"></textarea>
-        </div>
-        <button type="submit" class="btn primary">发布</button>
-    </form>
-</main>
+    </div>
+</section>
 
 <footer class="footer">
-    <p>&copy; <?php echo date('Y'); ?> RuiNexus Market</p>
+    <div class="footer-inner">
+        <div class="footer__brand">
+            <div class="footer__brand-name"><?php echo htmlspecialchars($siteName); ?></div>
+            <p class="footer__brand-desc">安全可靠的服务器与数字资产交易平台。值得信赖，透明交易。</p>
+        </div>
+        <div class="footer__links-group">
+            <h4>快速链接</h4>
+            <ul>
+                <li><a href="/">市场</a></li>
+                <li><a href="/publish">发布</a></li>
+            </ul>
+        </div>
+    </div>
+    <div class="footer__bottom">
+        <p>&copy; <?php echo date('Y'); ?> <?php echo htmlspecialchars($siteName); ?> — 版权所有。</p>
+    </div>
 </footer>
 
 <script>
-function selectHost(id, productName, originalAmount) {
-    document.getElementById('publish-form').style.display = 'block';
-    document.getElementById('form-host-id').value = id;
-    document.getElementById('form-title').value = productName;
-    document.getElementById('form-price').value = originalAmount;
+const API_BASE = '<?php echo htmlspecialchars($apiBaseUrl); ?>';
+let selectedHostId = 0;
+let originalAmount = 0;
+
+function selectHost(el) {
+    document.querySelectorAll('.publish__host-card').forEach(function(c) {
+        c.classList.remove('is-selected');
+        var uc = c.querySelector('.publish__host-unchecked');
+        var cc = c.querySelector('.publish__host-checked');
+        if (uc) uc.style.display = '';
+        if (cc) cc.style.display = 'none';
+    });
+
+    el.classList.add('is-selected');
+    var uc = el.querySelector('.publish__host-unchecked');
+    var cc = el.querySelector('.publish__host-checked');
+    if (uc) uc.style.display = 'none';
+    if (cc) cc.style.display = '';
+
+    selectedHostId = parseInt(el.dataset.hostId);
+    originalAmount = parseFloat(el.dataset.originalAmount) || 0;
+
+    document.getElementById('formHostId').value = selectedHostId;
+    document.getElementById('formTitle').value = el.dataset.productName || '';
+    document.getElementById('formPrice').value = el.dataset.originalAmount || '';
+    document.getElementById('priceHint').textContent = originalAmount > 0 ? '原价 ¥' + originalAmount.toFixed(2) : '';
+
+    document.getElementById('publishForm').style.display = '';
+    document.getElementById('publishForm').scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
-async function publishItem(e) {
-    e.preventDefault();
-    const form = document.getElementById('publish-form');
-    const formData = new FormData(form);
-    const data = new URLSearchParams(formData).toString();
+function resetForm() {
+    selectedHostId = 0;
+    originalAmount = 0;
+    document.getElementById('publishForm').style.display = 'none';
+    document.querySelectorAll('.publish__host-card').forEach(function(c) {
+        c.classList.remove('is-selected');
+        var uc = c.querySelector('.publish__host-unchecked');
+        var cc = c.querySelector('.publish__host-checked');
+        if (uc) uc.style.display = '';
+        if (cc) cc.style.display = 'none';
+    });
+}
+
+function collectSpecData() {
+    var data = {};
+    var fieldMap = {};
+
+    document.querySelectorAll('.publish__spec-field').forEach(function(f) {
+        var fieldName = f.dataset.fieldName;
+        var fieldType = f.dataset.fieldType;
+        var values = [];
+
+        if (fieldType === 'checkbox') {
+            f.querySelectorAll('input[type="checkbox"]:checked').forEach(function(cb) {
+                values.push(cb.value);
+            });
+            if (values.length > 0) data[fieldName] = values.join(',');
+        } else if (fieldType === 'radio') {
+            var checked = f.querySelector('input[type="radio"]:checked');
+            if (checked) data[fieldName] = checked.value;
+        } else {
+            var input = f.querySelector('.publish__spec-input');
+            if (input && input.value.trim()) data[fieldName] = input.value.trim();
+        }
+    });
+
+    return data;
+}
+
+function validateSpecFields() {
+    var valid = true;
+    document.querySelectorAll('.publish__spec-field').forEach(function(f) {
+        var isRequired = f.dataset.isRequired === '1';
+        if (!isRequired) return;
+
+        var fieldName = f.dataset.fieldName;
+        var fieldType = f.dataset.fieldType;
+        var hasValue = false;
+
+        if (fieldType === 'checkbox') {
+            hasValue = f.querySelectorAll('input[type="checkbox"]:checked').length > 0;
+        } else if (fieldType === 'radio') {
+            hasValue = !!f.querySelector('input[type="radio"]:checked');
+        } else {
+            var input = f.querySelector('.publish__spec-input');
+            hasValue = input && input.value.trim() !== '';
+        }
+
+        if (!hasValue) {
+            f.classList.add('is-error');
+            valid = false;
+        } else {
+            f.classList.remove('is-error');
+        }
+    });
+    return valid;
+}
+
+async function submitPublish() {
+    if (selectedHostId <= 0) {
+        alert('请先选择要出售的服务器');
+        return;
+    }
+
+    var title = document.getElementById('formTitle').value.trim();
+    var salePrice = parseFloat(document.getElementById('formPrice').value);
+
+    if (!title) {
+        alert('请输入标题');
+        return;
+    }
+    if (!salePrice || salePrice <= 0) {
+        alert('请输入有效的售价');
+        return;
+    }
+
+    if (!validateSpecFields()) {
+        alert('请填写所有必填配置字段');
+        return;
+    }
+
+    var specData = collectSpecData();
+    var params = new URLSearchParams();
+    params.append('host_id', selectedHostId);
+    params.append('title', title);
+    params.append('sale_price', salePrice);
+    params.append('description', document.getElementById('formDesc').value.trim());
+    params.append('notes', document.getElementById('formNotes').value.trim());
+    if (Object.keys(specData).length > 0) {
+        params.append('spec_data', JSON.stringify(specData));
+    }
 
     try {
-        const resp = await fetch('<?php echo $apiBase; ?>/market_api.php?action=create', {
+        var resp = await fetch(API_BASE + '/market_api.php?action=create', {
             method: 'POST',
-            headers: {'Content-Type': 'application/x-www-form-urlencoded'},
-            body: data,
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: params.toString(),
             credentials: 'include'
         });
-        const result = await resp.json();
+        var result = await resp.json();
         if (result.status === 200) {
             alert(result.msg || '发布成功');
             window.location.href = '/user/listings';
+        } else if (result.status === 401) {
+            alert('请先登录');
         } else {
             alert(result.msg || '发布失败');
         }
-    } catch(e) {
+    } catch (e) {
         alert('请求失败，请重试');
     }
 }
+<?php echo \Market\Auth::jsSnippet($apiBaseUrl); ?>
 </script>
 </body>
 </html>

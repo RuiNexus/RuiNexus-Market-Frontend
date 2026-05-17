@@ -614,6 +614,20 @@ img { max-width: 100%; height: auto; }
     white-space: pre-line;
 }
 
+.detail__notes {
+    margin-bottom: 28px;
+    padding: 16px 20px;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid var(--border);
+}
+
+.detail__notes-content {
+    font-size: 14px;
+    line-height: 1.8;
+    color: var(--text-secondary);
+    white-space: pre-line;
+}
+
 /* ===== Detail Specs Table ===== */
 .detail__specs {
     margin-bottom: 28px;
