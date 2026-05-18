@@ -2,15 +2,8 @@
 
 use Market\Auth;
 
-$uid = Auth::getUid();
-if (!$uid) { header('Location: ' . Auth::getLoginUrl($apiBase)); exit; }
-
 $page    = max(1, intval($_GET['page'] ?? 1));
 $size    = 20;
-$result  = $api->getFavorites(['page' => $page, 'size' => $size]);
-$list    = $result['data']['list'] ?? [];
-$total   = $result['data']['total'] ?? 0;
-$specLabels = $result['data']['spec_labels'] ?? [];
 
 $siteConfig = $api->getConfig()['data'] ?? [];
 $siteName   = $siteConfig['site_name'] ?? 'RuiNexus Market';
@@ -73,101 +66,37 @@ function fmtPrice($p) {
     <div class="section-label">05 / FAVORITES</div>
     <h2 class="section-title">我的收藏</h2>
 
-    <?php if (empty($list)): ?>
-    <div class="empty">
+    <div id="favoritesLoading" class="empty">
+        <div class="empty__icon"><i class="fas fa-spinner fa-pulse"></i></div>
+        <p>正在加载...</p>
+    </div>
+
+    <div id="favoritesUnauth" class="empty" style="display:none;">
+        <div class="empty__icon"><i class="fas fa-lock"></i></div>
+        <p>请先登录以查看您的收藏</p>
+        <a href="<?php echo Auth::getLoginUrl($apiBaseUrl); ?>" class="detail__btn detail__btn--buy" style="display:inline-flex;margin-top:20px;width:auto;padding:12px 28px;">
+            <i class="fas fa-sign-in-alt"></i> 登录账号
+        </a>
+    </div>
+
+    <div id="favoritesError" class="empty" style="display:none;">
+        <div class="empty__icon"><i class="fas fa-exclamation-triangle"></i></div>
+        <p>加载失败，请刷新重试</p>
+    </div>
+
+    <div id="favoritesEmpty" class="empty" style="display:none;">
         <div class="empty__icon"><i class="far fa-heart"></i></div>
         <p>暂无收藏</p>
         <a href="/" class="detail__btn detail__btn--buy" style="display:inline-flex;margin-top:20px;width:auto;padding:12px 28px;">
             <i class="fas fa-search"></i> 浏览市场
         </a>
     </div>
-    <?php else: ?>
-    <div class="card-grid">
-        <?php foreach ($list as $v): ?>
-        <?php
-        $specData = is_string($v['spec_data']) ? json_decode($v['spec_data'], true) : ($v['spec_data'] ?? []);
-        $billingTag = billingLabel($v['billing_cycle'] ?? '');
-        $remainingDays = $v['remaining_days'] ?? null;
-        $discount = 0;
-        if (($v['original_amount'] ?? 0) > 0 && ($v['sale_price'] ?? 0) < $v['original_amount']) {
-            $r = round($v['sale_price'] / $v['original_amount'] * 10, 1);
-            if ($r < 10) $discount = $r;
-        }
-        ?>
-        <article class="card" onclick="location.href='/detail?id=<?php echo $v['id']; ?>'">
-            <div class="card__header">
-                <h3 class="card__title" title="<?php echo htmlspecialchars($v['title'] ?? $v['product_name']); ?>">
-                    <?php echo htmlspecialchars($v['title'] ?? $v['product_name']); ?>
-                </h3>
-                <svg class="card__arrow" viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="4" stroke-linecap="butt">
-                    <path d="m16 39.513 15.556-15.557L16 8.4"></path>
-                </svg>
-            </div>
 
-            <div class="card__tags">
-                <?php if ($billingTag): ?><span class="card__tag"><?php echo htmlspecialchars($billingTag); ?></span><?php endif; ?>
-                <?php if ($remainingDays !== null && $remainingDays > 0): ?>
-                <span class="card__tag card__tag--days <?php echo $remainingDays > 65 ? 'is-safe' : ($remainingDays > 30 ? 'is-warning' : 'is-danger'); ?>"><?php echo $remainingDays; ?> 天剩余</span>
-                <?php elseif ($remainingDays === null): ?>
-                <span class="card__tag">永久有效</span>
-                <?php endif; ?>
-            </div>
-
-            <?php if (!empty($specData)): ?>
-            <div class="card__specs">
-                <?php foreach ($specData as $field => $value): ?>
-                <?php $label = $specLabels[$field] ?? $field; ?>
-                <div class="card__spec-row">
-                    <span class="card__spec-label"><?php echo htmlspecialchars($label); ?></span>
-                    <span class="card__spec-value"><?php echo htmlspecialchars(is_array($value) ? implode(',', $value) : strval($value)); ?></span>
-                </div>
-                <?php endforeach; ?>
-            </div>
-            <?php endif; ?>
-
-            <div class="card__pricing">
-                <?php if ($discount > 0): ?><span class="card__discount">-<?php echo round((1 - $discount / 10) * 100); ?>%</span><?php endif; ?>
-                <span class="card__price-symbol">¥</span>
-                <span class="card__price-amount"><?php echo htmlspecialchars(fmtPrice(floatval($v['sale_price'] ?? 0))); ?></span>
-                <span class="card__price-unit">CNY</span>
-                <?php if (($v['original_amount'] ?? 0) > 0 && $v['sale_price'] != $v['original_amount']): ?>
-                <span class="card__price-original">¥<?php echo htmlspecialchars(fmtPrice(floatval($v['original_amount']))); ?></span>
-                <?php endif; ?>
-            </div>
-        </article>
-        <?php endforeach; ?>
+    <div id="favoritesList" class="card-grid" style="display:none;">
     </div>
 
-    <?php
-    $totalPages = max(1, ceil($total / $size));
-    if ($totalPages > 1):
-    ?>
-    <div class="pagination">
-        <?php if ($page > 1): ?>
-        <a href="?page=<?php echo $page - 1; ?>" class="pagination__item"><i class="fas fa-chevron-left"></i></a>
-        <?php endif; ?>
-        <?php
-        $start = max(1, $page - 2);
-        $end = min($totalPages, $page + 2);
-        if ($start > 1) {
-            echo '<a href="?page=1" class="pagination__item">1</a>';
-            if ($start > 2) echo '<span class="pagination__item disabled">...</span>';
-        }
-        for ($i = $start; $i <= $end; $i++) {
-            echo '<a href="?page=' . $i . '" class="pagination__item ' . ($i == $page ? 'active' : '') . '">' . $i . '</a>';
-        }
-        if ($end < $totalPages) {
-            if ($end < $totalPages - 1) echo '<span class="pagination__item disabled">...</span>';
-            echo '<a href="?page=' . $totalPages . '" class="pagination__item">' . $totalPages . '</a>';
-        }
-        ?>
-        <?php if ($page < $totalPages): ?>
-        <a href="?page=<?php echo $page + 1; ?>" class="pagination__item"><i class="fas fa-chevron-right"></i></a>
-        <?php endif; ?>
-        <span class="pagination__info">第 <?php echo $page; ?> / <?php echo $totalPages; ?> 页</span>
+    <div id="favoritesPagination" class="pagination" style="display:none;">
     </div>
-    <?php endif; ?>
-    <?php endif; ?>
 </section>
 
 <footer class="footer">
@@ -190,6 +119,172 @@ function fmtPrice($p) {
 </footer>
 
 <script>
+var API_BASE = <?php echo json_encode($apiBaseUrl); ?>;
+var LOGIN_URL = <?php echo json_encode(Auth::getLoginUrl($apiBaseUrl)); ?>;
+var CURRENT_PAGE = <?php echo $page; ?>;
+var PAGE_SIZE = <?php echo $size; ?>;
+
+function escHtml(str) {
+    var div = document.createElement('div');
+    div.appendChild(document.createTextNode(str));
+    return div.innerHTML;
+}
+
+function billingLabelJS(cycle) {
+    var map = {monthly:'月付',quarterly:'季付',semiannually:'半年付',annually:'年付',biennially:'两年付',triennially:'三年付',onetime:'永久',free:'免费'};
+    return map[cycle] || (cycle ? cycle.toUpperCase() : '');
+}
+
+function fmtPriceJS(p) {
+    return p === Math.floor(p) ? p.toLocaleString() : p.toFixed(2);
+}
+
+function showById(id) { var el = document.getElementById(id); if (el) el.style.display = ''; }
+function hideById(id) { var el = document.getElementById(id); if (el) el.style.display = 'none'; }
+
+function renderFavoriteCard(v, specLabels) {
+    var specData = typeof v.spec_data === 'string' ? JSON.parse(v.spec_data || '{}') : (v.spec_data || {});
+    var billingTag = billingLabelJS(v.billing_cycle);
+    var remainingDays = v.remaining_days;
+    var discount = 0;
+    if ((v.original_amount || 0) > 0 && (v.sale_price || 0) < (v.original_amount || 0)) {
+        var r = Math.round(v.sale_price / v.original_amount * 100) / 10;
+        if (r < 10) discount = r;
+    }
+
+    var tagsHtml = '';
+    if (billingTag) tagsHtml += '<span class="card__tag">' + escHtml(billingTag) + '</span>';
+    if (remainingDays !== null && remainingDays !== undefined && remainingDays > 0) {
+        var cls = remainingDays > 65 ? 'is-safe' : (remainingDays > 30 ? 'is-warning' : 'is-danger');
+        tagsHtml += '<span class="card__tag card__tag--days ' + cls + '">' + remainingDays + ' 天剩余</span>';
+    } else if (remainingDays === null || remainingDays === undefined) {
+        tagsHtml += '<span class="card__tag">永久有效</span>';
+    }
+
+    var specsHtml = '';
+    if (Object.keys(specData).length > 0) {
+        specsHtml += '<div class="card__specs">';
+        for (var field in specData) {
+            var label = specLabels[field] || field;
+            var val = Array.isArray(specData[field]) ? specData[field].join(',') : String(specData[field]);
+            specsHtml += '<div class="card__spec-row"><span class="card__spec-label">' + escHtml(label) + '</span><span class="card__spec-value">' + escHtml(val) + '</span></div>';
+        }
+        specsHtml += '</div>';
+    }
+
+    var discountHtml = discount > 0 ? '<span class="card__discount">-' + Math.round((1 - discount / 10) * 100) + '%</span>' : '';
+    var price = parseFloat(v.sale_price || 0);
+
+    return '<article class="card" onclick="location.href=\'/detail?id=' + v.id + '\'">' +
+        '<div class="card__header">' +
+            '<h3 class="card__title" title="' + escHtml(v.title || v.product_name) + '">' + escHtml(v.title || v.product_name) + '</h3>' +
+            '<svg class="card__arrow" viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="4" stroke-linecap="butt"><path d="m16 39.513 15.556-15.557L16 8.4"></path></svg>' +
+        '</div>' +
+        '<div class="card__tags">' + tagsHtml + '</div>' +
+        specsHtml +
+        '<div class="card__pricing">' +
+            discountHtml +
+            '<span class="card__price-symbol">¥</span>' +
+            '<span class="card__price-amount">' + escHtml(fmtPriceJS(price)) + '</span>' +
+            '<span class="card__price-unit">CNY</span>' +
+            ((v.original_amount || 0) > 0 && price !== parseFloat(v.original_amount) ? '<span class="card__price-original">¥' + escHtml(fmtPriceJS(parseFloat(v.original_amount))) + '</span>' : '') +
+        '</div>' +
+    '</article>';
+}
+
+function renderPagination(total, page, size) {
+    var totalPages = Math.max(1, Math.ceil(total / size));
+    if (totalPages <= 1) return '';
+
+    var html = '';
+    if (page > 1) {
+        html += '<a href="?page=' + (page - 1) + '" class="pagination__item"><i class="fas fa-chevron-left"></i></a>';
+    }
+    var start = Math.max(1, page - 2);
+    var end = Math.min(totalPages, page + 2);
+    if (start > 1) {
+        html += '<a href="?page=1" class="pagination__item">1</a>';
+        if (start > 2) html += '<span class="pagination__item disabled">...</span>';
+    }
+    for (var i = start; i <= end; i++) {
+        html += '<a href="?page=' + i + '" class="pagination__item ' + (i === page ? 'active' : '') + '">' + i + '</a>';
+    }
+    if (end < totalPages) {
+        if (end < totalPages - 1) html += '<span class="pagination__item disabled">...</span>';
+        html += '<a href="?page=' + totalPages + '" class="pagination__item">' + totalPages + '</a>';
+    }
+    if (page < totalPages) {
+        html += '<a href="?page=' + (page + 1) + '" class="pagination__item"><i class="fas fa-chevron-right"></i></a>';
+    }
+    html += '<span class="pagination__info">第 ' + page + ' / ' + totalPages + ' 页</span>';
+    return html;
+}
+
+async function loadFavorites() {
+    hideById('favoritesLoading');
+    hideById('favoritesUnauth');
+    hideById('favoritesError');
+    hideById('favoritesEmpty');
+    hideById('favoritesList');
+    hideById('favoritesPagination');
+
+    if (!window.__marketUser || !window.__marketUser.loggedIn) {
+        showById('favoritesUnauth');
+        return;
+    }
+
+    try {
+        var resp = await fetch(API_BASE + '/market_api.php?action=favorites&page=' + CURRENT_PAGE + '&size=' + PAGE_SIZE, { credentials: 'include' });
+        var data = await resp.json();
+        if (data.status !== 200) {
+            showById('favoritesError');
+            return;
+        }
+        var list = data.data.list || [];
+        var total = data.data.total || 0;
+        var specLabels = data.data.spec_labels || {};
+
+        if (list.length === 0) {
+            showById('favoritesEmpty');
+            return;
+        }
+
+        var html = '';
+        for (var i = 0; i < list.length; i++) {
+            html += renderFavoriteCard(list[i], specLabels);
+        }
+        document.getElementById('favoritesList').innerHTML = html;
+        showById('favoritesList');
+
+        var pagHtml = renderPagination(total, CURRENT_PAGE, PAGE_SIZE);
+        if (pagHtml) {
+            document.getElementById('favoritesPagination').innerHTML = pagHtml;
+            showById('favoritesPagination');
+        }
+    } catch (e) {
+        showById('favoritesError');
+    }
+}
+
+(function initFavorites() {
+    if (window.__marketUser) {
+        loadFavorites();
+        return;
+    }
+    var checkCount = 0;
+    var timer = setInterval(function() {
+        checkCount++;
+        if (window.__marketUser) {
+            clearInterval(timer);
+            loadFavorites();
+        } else if (checkCount > 50) {
+            clearInterval(timer);
+            hideById('favoritesLoading');
+            showById('favoritesUnauth');
+        }
+    }, 100);
+})();
+
 <?php echo \Market\Auth::jsSnippet($apiBaseUrl); ?>
 </script>
 </body>

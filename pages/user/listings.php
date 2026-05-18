@@ -2,15 +2,8 @@
 
 use Market\Auth;
 
-$uid = Auth::getUid();
-if (!$uid) { header('Location: ' . Auth::getLoginUrl($apiBase)); exit; }
-
 $page    = max(1, intval($_GET['page'] ?? 1));
 $size    = 20;
-$result  = $api->getMyListings(['page' => $page, 'size' => $size]);
-$list    = $result['data']['list'] ?? [];
-$total   = $result['data']['total'] ?? 0;
-$specLabels = $result['data']['spec_labels'] ?? [];
 
 $siteConfig = $api->getConfig()['data'] ?? [];
 $siteName   = $siteConfig['site_name'] ?? 'RuiNexus Market';
@@ -88,155 +81,56 @@ function fmtPrice($p) {
         <a href="/publish" class="nav-cta"><i class="fas fa-plus"></i> 发布新商品</a>
     </div>
 
-    <div class="listings__stats">
+    <div id="listingsStats" class="listings__stats" style="display:none;">
         <div class="listings__stat">
-            <span class="listings__stat-num"><?php echo $total; ?></span>
+            <span class="listings__stat-num" id="statAll">0</span>
             <span class="listings__stat-label">全部</span>
         </div>
         <div class="listings__stat">
-            <span class="listings__stat-num"><?php echo count(array_filter($list, function($v) { return $v['status'] == 1; })); ?></span>
+            <span class="listings__stat-num" id="statActive">0</span>
             <span class="listings__stat-label">上架中</span>
         </div>
         <div class="listings__stat">
-            <span class="listings__stat-num"><?php echo count(array_filter($list, function($v) { return $v['status'] == 0; })); ?></span>
+            <span class="listings__stat-num" id="statPending">0</span>
             <span class="listings__stat-label">待审核</span>
         </div>
         <div class="listings__stat">
-            <span class="listings__stat-num"><?php echo count(array_filter($list, function($v) { return $v['status'] == 3; })); ?></span>
+            <span class="listings__stat-num" id="statDelist">0</span>
             <span class="listings__stat-label">已下架</span>
         </div>
     </div>
 
-    <?php if (empty($list)): ?>
-    <div class="empty">
+    <div id="listingsLoading" class="empty">
+        <div class="empty__icon"><i class="fas fa-spinner fa-pulse"></i></div>
+        <p>正在加载...</p>
+    </div>
+
+    <div id="listingsUnauth" class="empty" style="display:none;">
+        <div class="empty__icon"><i class="fas fa-lock"></i></div>
+        <p>请先登录以查看您的发布</p>
+        <a href="<?php echo Auth::getLoginUrl($apiBaseUrl); ?>" class="detail__btn detail__btn--buy" style="display:inline-flex;margin-top:20px;width:auto;padding:12px 28px;">
+            <i class="fas fa-sign-in-alt"></i> 登录账号
+        </a>
+    </div>
+
+    <div id="listingsError" class="empty" style="display:none;">
+        <div class="empty__icon"><i class="fas fa-exclamation-triangle"></i></div>
+        <p>加载失败，请刷新重试</p>
+    </div>
+
+    <div id="listingsEmpty" class="empty" style="display:none;">
         <div class="empty__icon"><i class="fas fa-inbox"></i></div>
         <p>暂无发布</p>
         <a href="/publish" class="detail__btn detail__btn--buy" style="display:inline-flex;margin-top:20px;width:auto;padding:12px 28px;">
             <i class="fas fa-plus"></i> 发布第一个商品
         </a>
     </div>
-    <?php else: ?>
-    <div class="listings__list">
-        <?php foreach ($list as $v): ?>
-        <?php
-        $status = $statusMap[$v['status']] ?? ['label' => '未知', 'class' => ''];
-        $specData = is_string($v['spec_data']) ? json_decode($v['spec_data'], true) : ($v['spec_data'] ?? []);
-        $billingTag = billingLabel($v['billing_cycle'] ?? '');
-        $remainingDays = $v['remaining_days'] ?? null;
-        $regdate = $v['regdate'] ?? 0;
-        $nextduedate = $v['nextduedate'] ?? 0;
-        $durationDays = ($regdate > 0 && $nextduedate > $regdate) ? round(($nextduedate - $regdate) / 86400) : 0;
-        $hasRemaining = $remainingDays !== null && $durationDays > 0;
-        $remainingPct = $hasRemaining ? min(100, round($remainingDays / max($durationDays, 1) * 100)) : 0;
-        $discount = 0;
-        if (($v['original_amount'] ?? 0) > 0 && ($v['sale_price'] ?? 0) < $v['original_amount']) {
-            $r = round($v['sale_price'] / $v['original_amount'] * 10, 1);
-            if ($r < 10) $discount = $r;
-        }
-        ?>
-        <div class="listings__item" data-listing-id="<?php echo $v['id']; ?>" data-status="<?php echo $v['status']; ?>">
-            <div class="listings__item-main">
-                <div class="listings__item-header">
-                    <a href="/detail?id=<?php echo $v['id']; ?>" class="listings__item-title"><?php echo htmlspecialchars($v['title'] ?? $v['product_name']); ?></a>
-                    <span class="listings__status <?php echo $status['class']; ?>"><?php echo $status['label']; ?></span>
-                </div>
 
-                <div class="listings__item-tags">
-                    <?php if ($billingTag): ?><span class="card__tag"><?php echo htmlspecialchars($billingTag); ?></span><?php endif; ?>
-                    <?php if ($remainingDays !== null && $remainingDays > 0): ?>
-                    <span class="card__tag card__tag--days <?php echo $remainingDays > 65 ? 'is-safe' : ($remainingDays > 30 ? 'is-warning' : 'is-danger'); ?>"><?php echo $remainingDays; ?> 天剩余</span>
-                    <?php elseif ($remainingDays === null): ?>
-                    <span class="card__tag">永久有效</span>
-                    <?php endif; ?>
-                </div>
-
-                <?php if (!empty($specData)): ?>
-                <div class="listings__item-specs">
-                    <?php foreach ($specData as $field => $value): ?>
-                    <?php $label = $specLabels[$field] ?? $field; ?>
-                    <span class="listings__spec-tag"><?php echo htmlspecialchars($label); ?>: <?php echo htmlspecialchars(is_array($value) ? implode(',', $value) : strval($value)); ?></span>
-                    <?php endforeach; ?>
-                </div>
-                <?php endif; ?>
-
-                <?php if ($hasRemaining): ?>
-                <div class="card__remaining-bar <?php echo $remainingPct > 65 ? 'is-safe' : ($remainingPct > 30 ? 'is-warning' : 'is-danger'); ?>">
-                    <div class="card__remaining-fill" style="width:<?php echo $remainingPct; ?>%"></div>
-                    <span class="card__remaining-text"><?php echo $remainingDays; ?> / <?php echo $durationDays; ?> 天</span>
-                </div>
-                <?php endif; ?>
-
-                <div class="listings__item-meta">
-                    <span><i class="far fa-clock"></i> <?php echo date('Y-m-d', $v['create_time']); ?></span>
-                    <span><i class="far fa-eye"></i> <?php echo intval($v['views'] ?? 0); ?></span>
-                </div>
-            </div>
-
-            <div class="listings__item-side">
-                <div class="listings__item-price">
-                    <?php if ($discount > 0): ?><span class="card__discount">-<?php echo round((1 - $discount / 10) * 100); ?>%</span><?php endif; ?>
-                    <span class="card__price-symbol">¥</span>
-                    <span class="card__price-amount"><?php echo htmlspecialchars(fmtPrice(floatval($v['sale_price'] ?? 0))); ?></span>
-                </div>
-                <?php if (($v['original_amount'] ?? 0) > 0 && $v['sale_price'] != $v['original_amount']): ?>
-                <div class="listings__item-original">原价 ¥<?php echo htmlspecialchars(fmtPrice(floatval($v['original_amount']))); ?></div>
-                <?php endif; ?>
-
-                <div class="listings__item-actions">
-                    <?php if (in_array($v['status'], [0, 1])): ?>
-                    <button class="listings__btn listings__btn--delist" onclick="delistItem(<?php echo $v['id']; ?>)" title="下架">
-                        <i class="fas fa-arrow-down"></i> 下架
-                    </button>
-                    <?php endif; ?>
-                    <?php if ($v['status'] == 3): ?>
-                    <button class="listings__btn listings__btn--relist" onclick="relistItem(<?php echo $v['id']; ?>)" title="重新上架">
-                        <i class="fas fa-arrow-up"></i> 重新上架
-                    </button>
-                    <?php endif; ?>
-                    <?php if (in_array($v['status'], [1, 3])): ?>
-                    <button class="listings__btn listings__btn--edit" onclick="editItem(<?php echo $v['id']; ?>, this)" title="编辑">
-                        <i class="fas fa-pen"></i> 编辑
-                    </button>
-                    <?php endif; ?>
-                </div>
-            </div>
-        </div>
-        <?php endforeach; ?>
+    <div id="listingsList" class="listings__list" style="display:none;">
     </div>
 
-    <?php
-    $totalPages = max(1, ceil($total / $size));
-    if ($totalPages > 1):
-    ?>
-    <div class="pagination">
-        <?php if ($page > 1): ?>
-        <a href="?page=<?php echo $page - 1; ?>" class="pagination__item"><i class="fas fa-chevron-left"></i></a>
-        <?php endif; ?>
-
-        <?php
-        $start = max(1, $page - 2);
-        $end = min($totalPages, $page + 2);
-        if ($start > 1) {
-            echo '<a href="?page=1" class="pagination__item">1</a>';
-            if ($start > 2) echo '<span class="pagination__item disabled">...</span>';
-        }
-        for ($i = $start; $i <= $end; $i++) {
-            echo '<a href="?page=' . $i . '" class="pagination__item ' . ($i == $page ? 'active' : '') . '">' . $i . '</a>';
-        }
-        if ($end < $totalPages) {
-            if ($end < $totalPages - 1) echo '<span class="pagination__item disabled">...</span>';
-            echo '<a href="?page=' . $totalPages . '" class="pagination__item">' . $totalPages . '</a>';
-        }
-        ?>
-
-        <?php if ($page < $totalPages): ?>
-        <a href="?page=<?php echo $page + 1; ?>" class="pagination__item"><i class="fas fa-chevron-right"></i></a>
-        <?php endif; ?>
-
-        <span class="pagination__info">第 <?php echo $page; ?> / <?php echo $totalPages; ?> 页</span>
+    <div id="listingsPagination" class="pagination" style="display:none;">
     </div>
-    <?php endif; ?>
-    <?php endif; ?>
 </section>
 
 <div id="editModal" class="modal" style="display:none;">
@@ -341,8 +235,203 @@ function fmtPrice($p) {
 </footer>
 
 <script>
-const API_BASE = '<?php echo htmlspecialchars($apiBaseUrl); ?>';
-let currentEditData = null;
+var API_BASE = <?php echo json_encode($apiBaseUrl); ?>;
+var LOGIN_URL = <?php echo json_encode(Auth::getLoginUrl($apiBaseUrl)); ?>;
+var CURRENT_PAGE = <?php echo $page; ?>;
+var PAGE_SIZE = <?php echo $size; ?>;
+var currentEditData = null;
+
+var STATUS_MAP = <?php echo json_encode($statusMap); ?>;
+
+function escHtml(str) {
+    var div = document.createElement('div');
+    div.appendChild(document.createTextNode(str));
+    return div.innerHTML;
+}
+
+function billingLabelJS(cycle) {
+    var map = {monthly:'月付',quarterly:'季付',semiannually:'半年付',annually:'年付',biennially:'两年付',triennially:'三年付',onetime:'永久',free:'免费'};
+    return map[cycle] || (cycle ? cycle.toUpperCase() : '');
+}
+
+function fmtPriceJS(p) {
+    return p === Math.floor(p) ? p.toLocaleString() : p.toFixed(2);
+}
+
+function showById(id) { var el = document.getElementById(id); if (el) el.style.display = ''; }
+function hideById(id) { var el = document.getElementById(id); if (el) el.style.display = 'none'; }
+
+function renderListingItem(v, specLabels) {
+    var status = STATUS_MAP[v.status] || {label:'未知',class:''};
+    var specData = typeof v.spec_data === 'string' ? JSON.parse(v.spec_data || '{}') : (v.spec_data || {});
+    var billingTag = billingLabelJS(v.billing_cycle);
+    var remainingDays = v.remaining_days;
+    var regdate = v.regdate || 0;
+    var nextduedate = v.nextduedate || 0;
+    var durationDays = (regdate > 0 && nextduedate > regdate) ? Math.round((nextduedate - regdate) / 86400) : 0;
+    var hasRemaining = remainingDays !== null && remainingDays !== undefined && durationDays > 0;
+    var remainingPct = hasRemaining ? Math.min(100, Math.round(remainingDays / Math.max(durationDays, 1) * 100)) : 0;
+    var discount = 0;
+    if ((v.original_amount || 0) > 0 && (v.sale_price || 0) < (v.original_amount || 0)) {
+        var r = Math.round(v.sale_price / v.original_amount * 100) / 10;
+        if (r < 10) discount = r;
+    }
+
+    var tagsHtml = '';
+    if (billingTag) tagsHtml += '<span class="card__tag">' + escHtml(billingTag) + '</span>';
+    if (remainingDays !== null && remainingDays !== undefined && remainingDays > 0) {
+        var cls = remainingDays > 65 ? 'is-safe' : (remainingDays > 30 ? 'is-warning' : 'is-danger');
+        tagsHtml += '<span class="card__tag card__tag--days ' + cls + '">' + remainingDays + ' 天剩余</span>';
+    } else if (remainingDays === null || remainingDays === undefined) {
+        tagsHtml += '<span class="card__tag">永久有效</span>';
+    }
+
+    var specsHtml = '';
+    if (Object.keys(specData).length > 0) {
+        specsHtml += '<div class="listings__item-specs">';
+        for (var field in specData) {
+            var label = specLabels[field] || field;
+            var val = Array.isArray(specData[field]) ? specData[field].join(',') : String(specData[field]);
+            specsHtml += '<span class="listings__spec-tag">' + escHtml(label) + ': ' + escHtml(val) + '</span>';
+        }
+        specsHtml += '</div>';
+    }
+
+    var barHtml = '';
+    if (hasRemaining) {
+        var barCls = remainingPct > 65 ? 'is-safe' : (remainingPct > 30 ? 'is-warning' : 'is-danger');
+        barHtml = '<div class="card__remaining-bar ' + barCls + '">' +
+            '<div class="card__remaining-fill" style="width:' + remainingPct + '%"></div>' +
+            '<span class="card__remaining-text">' + remainingDays + ' / ' + durationDays + ' 天</span></div>';
+    }
+
+    var actionsHtml = '';
+    if (v.status === 0 || v.status === 1) {
+        actionsHtml += '<button class="listings__btn listings__btn--delist" onclick="delistItem(' + v.id + ')" title="下架"><i class="fas fa-arrow-down"></i> 下架</button>';
+    }
+    if (v.status === 3) {
+        actionsHtml += '<button class="listings__btn listings__btn--relist" onclick="relistItem(' + v.id + ')" title="重新上架"><i class="fas fa-arrow-up"></i> 重新上架</button>';
+    }
+    if (v.status === 1 || v.status === 3) {
+        actionsHtml += '<button class="listings__btn listings__btn--edit" onclick="editItem(' + v.id + ', this)" title="编辑"><i class="fas fa-pen"></i> 编辑</button>';
+    }
+
+    var discountHtml = discount > 0 ? '<span class="card__discount">-' + Math.round((1 - discount / 10) * 100) + '%</span>' : '';
+    var price = parseFloat(v.sale_price || 0);
+    var originalPrice = parseFloat(v.original_amount || 0);
+
+    return '<div class="listings__item" data-listing-id="' + v.id + '" data-status="' + v.status + '">' +
+        '<div class="listings__item-main">' +
+            '<div class="listings__item-header">' +
+                '<a href="/detail?id=' + v.id + '" class="listings__item-title">' + escHtml(v.title || v.product_name) + '</a>' +
+                '<span class="listings__status ' + status['class'] + '">' + status['label'] + '</span>' +
+            '</div>' +
+            '<div class="listings__item-tags">' + tagsHtml + '</div>' +
+            specsHtml +
+            barHtml +
+            '<div class="listings__item-meta">' +
+                '<span><i class="far fa-clock"></i> ' + new Date(v.create_time * 1000).toISOString().slice(0, 10) + '</span>' +
+                '<span><i class="far fa-eye"></i> ' + (v.views || 0) + '</span>' +
+            '</div>' +
+        '</div>' +
+        '<div class="listings__item-side">' +
+            '<div class="listings__item-price">' +
+                discountHtml +
+                '<span class="card__price-symbol">¥</span>' +
+                '<span class="card__price-amount">' + escHtml(fmtPriceJS(price)) + '</span>' +
+            '</div>' +
+            (originalPrice > 0 && price !== originalPrice ? '<div class="listings__item-original">原价 ¥' + escHtml(fmtPriceJS(originalPrice)) + '</div>' : '') +
+            '<div class="listings__item-actions">' + actionsHtml + '</div>' +
+        '</div>' +
+    '</div>';
+}
+
+function renderPagination(total, page, size) {
+    var totalPages = Math.max(1, Math.ceil(total / size));
+    if (totalPages <= 1) return '';
+
+    var html = '';
+    if (page > 1) {
+        html += '<a href="?page=' + (page - 1) + '" class="pagination__item"><i class="fas fa-chevron-left"></i></a>';
+    }
+    var start = Math.max(1, page - 2);
+    var end = Math.min(totalPages, page + 2);
+    if (start > 1) {
+        html += '<a href="?page=1" class="pagination__item">1</a>';
+        if (start > 2) html += '<span class="pagination__item disabled">...</span>';
+    }
+    for (var i = start; i <= end; i++) {
+        html += '<a href="?page=' + i + '" class="pagination__item ' + (i === page ? 'active' : '') + '">' + i + '</a>';
+    }
+    if (end < totalPages) {
+        if (end < totalPages - 1) html += '<span class="pagination__item disabled">...</span>';
+        html += '<a href="?page=' + totalPages + '" class="pagination__item">' + totalPages + '</a>';
+    }
+    if (page < totalPages) {
+        html += '<a href="?page=' + (page + 1) + '" class="pagination__item"><i class="fas fa-chevron-right"></i></a>';
+    }
+    html += '<span class="pagination__info">第 ' + page + ' / ' + totalPages + ' 页</span>';
+    return html;
+}
+
+async function loadListings() {
+    hideById('listingsLoading');
+    hideById('listingsUnauth');
+    hideById('listingsError');
+    hideById('listingsEmpty');
+    hideById('listingsList');
+    hideById('listingsStats');
+    hideById('listingsPagination');
+
+    if (!window.__marketUser || !window.__marketUser.loggedIn) {
+        showById('listingsUnauth');
+        return;
+    }
+
+    try {
+        var resp = await fetch(API_BASE + '/market_api.php?action=my_listings&page=' + CURRENT_PAGE + '&size=' + PAGE_SIZE, { credentials: 'include' });
+        var data = await resp.json();
+        if (data.status !== 200) {
+            showById('listingsError');
+            return;
+        }
+        var list = data.data.list || [];
+        var total = data.data.total || 0;
+        var specLabels = data.data.spec_labels || {};
+
+        if (list.length === 0) {
+            showById('listingsEmpty');
+            return;
+        }
+
+        var activeCount = 0, pendingCount = 0, delistCount = 0;
+        list.forEach(function(v) {
+            if (v.status === 1) activeCount++;
+            if (v.status === 0) pendingCount++;
+            if (v.status === 3) delistCount++;
+        });
+        document.getElementById('statAll').textContent = total;
+        document.getElementById('statActive').textContent = activeCount;
+        document.getElementById('statPending').textContent = pendingCount;
+        document.getElementById('statDelist').textContent = delistCount;
+        showById('listingsStats');
+
+        var html = '';
+        for (var i = 0; i < list.length; i++) {
+            html += renderListingItem(list[i], specLabels);
+        }
+        document.getElementById('listingsList').innerHTML = html;
+        showById('listingsList');
+
+        var pagHtml = renderPagination(total, CURRENT_PAGE, PAGE_SIZE);
+        if (pagHtml) {
+            document.getElementById('listingsPagination').innerHTML = pagHtml;
+            showById('listingsPagination');
+        }
+    } catch (e) {
+        showById('listingsError');
+    }
+}
 
 async function delistItem(id) {
     if (!confirm('确认下架此商品？下架后商品将不再展示。')) return;
@@ -468,6 +557,26 @@ async function saveEdit() {
         alert('请求失败');
     }
 }
+
+(function initListings() {
+    if (window.__marketUser) {
+        loadListings();
+        return;
+    }
+    var checkCount = 0;
+    var timer = setInterval(function() {
+        checkCount++;
+        if (window.__marketUser) {
+            clearInterval(timer);
+            loadListings();
+        } else if (checkCount > 50) {
+            clearInterval(timer);
+            hideById('listingsLoading');
+            showById('listingsUnauth');
+        }
+    }, 100);
+})();
+
 <?php echo \Market\Auth::jsSnippet($apiBaseUrl); ?>
 </script>
 </body>

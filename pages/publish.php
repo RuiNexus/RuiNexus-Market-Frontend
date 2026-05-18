@@ -2,12 +2,6 @@
 
 use Market\Auth;
 
-$uid = Auth::getUid();
-if (!$uid) {
-    header('Location: ' . Auth::getLoginUrl($apiBase));
-    exit;
-}
-
 $siteConfig = $api->getConfig()['data'] ?? [];
 $siteName   = $siteConfig['site_name'] ?? 'RuiNexus Market';
 $notice     = $siteConfig['notice_content'] ?? '';
@@ -16,9 +10,6 @@ $user       = Auth::getUser();
 $frontendConfig = require __DIR__ . '/../config.php';
 $apiBaseUrl = $frontendConfig['api_base_url'] ?? 'https://test.ruinexus.com';
 $siteName = $frontendConfig['site_name'] ?: $siteName;
-
-$hostsResult = $api->getMyHosts();
-$hosts = $hostsResult['data'] ?? [];
 
 $fieldsResult = $api->get('fields');
 $specFields = $fieldsResult['data'] ?? [];
@@ -76,50 +67,34 @@ function fmtPrice($p) {
     <h2 class="section-title">发布二手服务器</h2>
 
     <div class="publish">
-        <div class="publish__step">
+        <div class="publish__step" id="step1">
             <h3 class="publish__step-title"><span class="publish__step-num">1</span> 选择要出售的服务器</h3>
 
-            <?php if (empty($hosts)): ?>
-            <div class="empty">
+            <div id="hostsLoading" class="empty">
+                <div class="empty__icon"><i class="fas fa-spinner fa-pulse"></i></div>
+                <p>正在加载服务器列表...</p>
+            </div>
+
+            <div id="hostsUnauth" class="empty" style="display:none;">
+                <div class="empty__icon"><i class="fas fa-lock"></i></div>
+                <p>请先登录以查看可出售的服务器</p>
+                <a href="<?php echo Auth::getLoginUrl($apiBaseUrl); ?>" class="detail__btn detail__btn--buy" style="display:inline-flex;margin-top:20px;width:auto;padding:12px 28px;">
+                    <i class="fas fa-sign-in-alt"></i> 登录账号
+                </a>
+            </div>
+
+            <div id="hostsError" class="empty" style="display:none;">
+                <div class="empty__icon"><i class="fas fa-exclamation-triangle"></i></div>
+                <p>加载失败，请刷新重试</p>
+            </div>
+
+            <div id="hostsEmpty" class="empty" style="display:none;">
                 <div class="empty__icon"><i class="fas fa-server"></i></div>
                 <p>您没有可出售的服务器（需状态为 Active 且不在交易黑名单中）</p>
             </div>
-            <?php else: ?>
-            <div class="publish__hosts">
-                <?php foreach ($hosts as $h): ?>
-                <?php
-                $remainingDays = $h['remaining_days'];
-                $billingTag = billingLabel($h['billingcycle'] ?? '');
-                $isOnSale = !empty($h['is_on_sale']);
-                ?>
-                <div class="publish__host-card <?php echo $isOnSale ? 'is-disabled' : ''; ?>" data-host-id="<?php echo $h['id']; ?>" data-product-name="<?php echo htmlspecialchars($h['product_name'] ?? ''); ?>" data-original-amount="<?php echo number_format($h['original_amount'], 2, '.', ''); ?>" data-billing-cycle="<?php echo htmlspecialchars($h['billingcycle'] ?? ''); ?>" onclick="<?php echo $isOnSale ? '' : 'selectHost(this)'; ?>">
-                    <div class="publish__host-radio">
-                        <?php if ($isOnSale): ?>
-                            <span class="publish__host-onsale"><i class="fas fa-tag"></i> 在售</span>
-                        <?php else: ?>
-                            <i class="far fa-circle publish__host-unchecked"></i>
-                            <i class="fas fa-check-circle publish__host-checked" style="display:none;"></i>
-                        <?php endif; ?>
-                    </div>
-                    <div class="publish__host-info">
-                        <div class="publish__host-name"><?php echo htmlspecialchars($h['product_name'] ?? ''); ?></div>
-                        <div class="publish__host-meta">
-                            <?php if ($billingTag): ?><span class="card__tag"><?php echo htmlspecialchars($billingTag); ?></span><?php endif; ?>
-                            <?php if ($remainingDays !== null && $remainingDays > 0): ?>
-                            <span class="card__tag card__tag--days <?php echo $remainingDays > 65 ? 'is-safe' : ($remainingDays > 30 ? 'is-warning' : 'is-danger'); ?>"><?php echo $remainingDays; ?> 天剩余</span>
-                            <?php elseif ($remainingDays === null): ?>
-                            <span class="card__tag">永久有效</span>
-                            <?php endif; ?>
-                        </div>
-                    </div>
-                    <div class="publish__host-price">
-                        <span class="publish__host-price-label">原价</span>
-                        <span class="publish__host-price-value">¥<?php echo htmlspecialchars(fmtPrice(floatval($h['original_amount'] ?? 0))); ?></span>
-                    </div>
-                </div>
-                <?php endforeach; ?>
+
+            <div id="hostsList" class="publish__hosts" style="display:none;">
             </div>
-            <?php endif; ?>
         </div>
 
         <div id="publishForm" class="publish__step" style="display:none;">
@@ -232,9 +207,54 @@ function fmtPrice($p) {
 </footer>
 
 <script>
-const API_BASE = '<?php echo htmlspecialchars($apiBaseUrl); ?>';
-let selectedHostId = 0;
-let originalAmount = 0;
+var API_BASE = <?php echo json_encode($apiBaseUrl); ?>;
+var LOGIN_URL = <?php echo json_encode(Auth::getLoginUrl($apiBaseUrl)); ?>;
+var selectedHostId = 0;
+var originalAmount = 0;
+
+function escHtml(str) {
+    var div = document.createElement('div');
+    div.appendChild(document.createTextNode(str));
+    return div.innerHTML;
+}
+
+function hostCardHtml(h) {
+    var billingTag = h.billingcycle ? (
+        {monthly:'月付',quarterly:'季付',semiannually:'半年付',annually:'年付',biennially:'两年付',triennially:'三年付',onetime:'永久',free:'免费'}[h.billingcycle] || h.billingcycle.toUpperCase()
+    ) : '';
+    var remainingDays = h.remaining_days;
+    var isOnSale = h.is_on_sale;
+    var daysTag = '';
+    if (remainingDays !== null && remainingDays !== undefined && remainingDays > 0) {
+        var cls = remainingDays > 65 ? 'is-safe' : (remainingDays > 30 ? 'is-warning' : 'is-danger');
+        daysTag = '<span class="card__tag card__tag--days ' + cls + '">' + remainingDays + ' 天剩余</span>';
+    } else if (remainingDays === null || remainingDays === undefined) {
+        daysTag = '<span class="card__tag">永久有效</span>';
+    }
+    var price = parseFloat(h.original_amount || 0);
+    var priceStr = price === Math.floor(price) ? price.toLocaleString() : price.toFixed(2);
+
+    var onclick = isOnSale ? '' : ' onclick="selectHost(this)"';
+    var disabledClass = isOnSale ? ' is-disabled' : '';
+    var radioHtml = isOnSale
+        ? '<span class="publish__host-onsale"><i class="fas fa-tag"></i> 在售</span>'
+        : '<i class="far fa-circle publish__host-unchecked"></i><i class="fas fa-check-circle publish__host-checked" style="display:none;"></i>';
+
+    return '<div class="publish__host-card' + disabledClass + '" data-host-id="' + h.id + '" data-product-name="' + escHtml(h.product_name || '') + '" data-original-amount="' + price.toFixed(2) + '" data-billing-cycle="' + escHtml(h.billingcycle || '') + '"' + onclick + '>' +
+        '<div class="publish__host-radio">' + radioHtml + '</div>' +
+        '<div class="publish__host-info">' +
+            '<div class="publish__host-name">' + escHtml(h.product_name || '') + '</div>' +
+            '<div class="publish__host-meta">' +
+                (billingTag ? '<span class="card__tag">' + escHtml(billingTag) + '</span>' : '') +
+                daysTag +
+            '</div>' +
+        '</div>' +
+        '<div class="publish__host-price">' +
+            '<span class="publish__host-price-label">原价</span>' +
+            '<span class="publish__host-price-value">¥' + escHtml(priceStr) + '</span>' +
+        '</div>' +
+    '</div>';
+}
 
 function selectHost(el) {
     document.querySelectorAll('.publish__host-card').forEach(function(c) {
@@ -278,7 +298,6 @@ function resetForm() {
 
 function collectSpecData() {
     var data = {};
-    var fieldMap = {};
 
     document.querySelectorAll('.publish__spec-field').forEach(function(f) {
         var fieldName = f.dataset.fieldName;
@@ -308,7 +327,6 @@ function validateSpecFields() {
         var isRequired = f.dataset.isRequired === '1';
         if (!isRequired) return;
 
-        var fieldName = f.dataset.fieldName;
         var fieldType = f.dataset.fieldType;
         var hasValue = false;
 
@@ -385,6 +403,70 @@ async function submitPublish() {
         alert('请求失败，请重试');
     }
 }
+
+function showById(id) {
+    var el = document.getElementById(id);
+    if (el) el.style.display = '';
+}
+function hideById(id) {
+    var el = document.getElementById(id);
+    if (el) el.style.display = 'none';
+}
+
+async function loadHosts() {
+    hideById('hostsLoading');
+    hideById('hostsUnauth');
+    hideById('hostsError');
+    hideById('hostsEmpty');
+    hideById('hostsList');
+
+    if (!window.__marketUser || !window.__marketUser.loggedIn) {
+        showById('hostsUnauth');
+        return;
+    }
+
+    try {
+        var resp = await fetch(API_BASE + '/market_api.php?action=my_hosts', { credentials: 'include' });
+        var data = await resp.json();
+        if (data.status !== 200) {
+            showById('hostsError');
+            return;
+        }
+        var hosts = data.data || [];
+        if (hosts.length === 0) {
+            showById('hostsEmpty');
+            return;
+        }
+        var html = '';
+        for (var i = 0; i < hosts.length; i++) {
+            html += hostCardHtml(hosts[i]);
+        }
+        document.getElementById('hostsList').innerHTML = html;
+        showById('hostsList');
+    } catch (e) {
+        showById('hostsError');
+    }
+}
+
+(function initPublish() {
+    if (window.__marketUser) {
+        loadHosts();
+        return;
+    }
+    var checkCount = 0;
+    var timer = setInterval(function() {
+        checkCount++;
+        if (window.__marketUser) {
+            clearInterval(timer);
+            loadHosts();
+        } else if (checkCount > 50) {
+            clearInterval(timer);
+            hideById('hostsLoading');
+            showById('hostsUnauth');
+        }
+    }, 100);
+})();
+
 <?php echo \Market\Auth::jsSnippet($apiBaseUrl); ?>
 </script>
 </body>
