@@ -101,17 +101,17 @@ class ApiClient
         return $this->post('delist', ['id' => $id]);
     }
 
-    private function get($action, $params = [])
+    public function get($action, $params = [])
     {
         return $this->request('GET', $action, $params);
     }
 
-    private function post($action, $data = [])
+    public function post($action, $data = [])
     {
         return $this->request('POST', $action, $data);
     }
 
-    private function request($method, $action, $data = [])
+    public function request($method, $action, $data = [])
     {
         $url = $this->apiUrl($action, $method === 'GET' ? [] : []);
 
