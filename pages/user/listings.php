@@ -191,6 +191,8 @@ function fmtPrice($p) {
                             </label>
                             <?php endforeach; ?>
                         </div>
+                        <?php elseif ($field['field_type'] === 'number'): ?>
+                        <input type="number" class="publish__input publish__spec-input" data-field="<?php echo htmlspecialchars($field['field_name']); ?>" placeholder="请输入<?php echo htmlspecialchars($field['field_label']); ?>" step="1">
                         <?php elseif ($field['field_type'] === 'checkbox'): ?>
                         <?php $options = is_string($field['field_options']) ? json_decode($field['field_options'], true) : ($field['field_options'] ?? []); ?>
                         <div class="publish__checkbox-group">
