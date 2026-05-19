@@ -324,7 +324,6 @@ function renderListingItem(v, specLabels) {
         '<div class="listings__item-main">' +
             '<div class="listings__item-header">' +
                 '<a href="/detail?id=' + v.id + '" class="listings__item-title">' + escHtml(v.title || v.product_name) + '</a>' +
-                '<span class="listings__status ' + status['class'] + '">' + status['label'] + '</span>' +
             '</div>' +
             '<div class="listings__item-tags">' + tagsHtml + '</div>' +
             specsHtml +
@@ -335,6 +334,7 @@ function renderListingItem(v, specLabels) {
             '</div>' +
         '</div>' +
         '<div class="listings__item-side">' +
+            '<span class="listings__status ' + status['class'] + '">' + status['label'] + '</span>' +
             '<div class="listings__item-price">' +
                 discountHtml +
                 '<span class="card__price-symbol">¥</span>' +

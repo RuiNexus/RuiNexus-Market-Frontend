@@ -1298,6 +1298,7 @@ a.listings__item-title:hover {
     transition: all 0.15s;
     background: var(--white);
     color: var(--text-secondary);
+    white-space: nowrap;
 }
 
 .listings__btn:hover {
