@@ -104,8 +104,8 @@ function fmtPrice($p) {
                 <input type="hidden" id="formHostId" value="">
 
                 <div class="publish__field">
-                    <label class="publish__label">标题</label>
-                    <input type="text" id="formTitle" class="publish__input" placeholder="如: 日本BGP线路 全系统可win" required>
+                    <label class="publish__label">产品名称</label>
+                    <div class="publish__product-name" id="formProductName" style="padding:10px 0;font-size:15px;font-weight:600;color:var(--text-primary);">—</div>
                 </div>
 
                 <div class="publish__field">
@@ -115,11 +115,6 @@ function fmtPrice($p) {
                         <input type="number" id="formPrice" class="publish__input publish__input--price" step="0.01" min="0.01" placeholder="输入您期望的售价" required>
                         <span class="publish__price-hint" id="priceHint"></span>
                     </div>
-                </div>
-
-                <div class="publish__field">
-                    <label class="publish__label">描述</label>
-                    <textarea id="formDesc" class="publish__textarea" rows="4" placeholder="可填写服务器线路、性能等补充信息"></textarea>
                 </div>
 
                 <div class="publish__field">
@@ -211,6 +206,7 @@ var API_BASE = <?php echo json_encode($apiBaseUrl); ?>;
 var LOGIN_URL = <?php echo json_encode(Auth::getLoginUrl($apiBaseUrl)); ?>;
 var selectedHostId = 0;
 var originalAmount = 0;
+var selectedProductName = '';
 
 function escHtml(str) {
     var div = document.createElement('div');
@@ -273,11 +269,12 @@ function selectHost(el) {
 
     selectedHostId = parseInt(el.dataset.hostId);
     originalAmount = parseFloat(el.dataset.originalAmount) || 0;
+    selectedProductName = el.dataset.productName || '';
 
     document.getElementById('formHostId').value = selectedHostId;
-    document.getElementById('formTitle').value = el.dataset.productName || '';
     document.getElementById('formPrice').value = el.dataset.originalAmount || '';
     document.getElementById('priceHint').textContent = originalAmount > 0 ? '原价 ¥' + originalAmount.toFixed(2) : '';
+    document.getElementById('formProductName').textContent = selectedProductName;
 
     document.getElementById('publishForm').style.display = '';
     document.getElementById('publishForm').scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -355,13 +352,8 @@ async function submitPublish() {
         return;
     }
 
-    var title = document.getElementById('formTitle').value.trim();
+    var title = selectedProductName;
     var salePrice = parseFloat(document.getElementById('formPrice').value);
-
-    if (!title) {
-        alert('请输入标题');
-        return;
-    }
     if (!salePrice || salePrice <= 0) {
         alert('请输入有效的售价');
         return;
@@ -377,7 +369,6 @@ async function submitPublish() {
     params.append('host_id', selectedHostId);
     params.append('title', title);
     params.append('sale_price', salePrice);
-    params.append('description', document.getElementById('formDesc').value.trim());
     params.append('notes', document.getElementById('formNotes').value.trim());
     if (Object.keys(specData).length > 0) {
         params.append('spec_data', JSON.stringify(specData));

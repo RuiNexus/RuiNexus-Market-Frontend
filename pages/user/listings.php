@@ -144,8 +144,8 @@ function fmtPrice($p) {
             <input type="hidden" id="editListingId" value="">
 
             <div class="publish__field">
-                <label class="publish__label">标题</label>
-                <input type="text" id="editTitle" class="publish__input" required>
+                <label class="publish__label">产品名称</label>
+                <div class="publish__product-name" id="editProductName" style="padding:10px 0;font-size:15px;font-weight:600;color:var(--text-primary);">—</div>
             </div>
 
             <div class="publish__field">
@@ -157,8 +157,8 @@ function fmtPrice($p) {
             </div>
 
             <div class="publish__field">
-                <label class="publish__label">描述</label>
-                <textarea id="editDesc" class="publish__textarea" rows="4"></textarea>
+                <label class="publish__label">卖家备注 <span style="color:var(--muted);font-weight:normal;">（买家可见）</span></label>
+                <textarea id="editNotes" class="publish__textarea" rows="3" placeholder="给买家看的备注信息"></textarea>
             </div>
 
             <?php if (!empty($specFields)): ?>
@@ -320,7 +320,7 @@ function renderListingItem(v, specLabels) {
     var price = parseFloat(v.sale_price || 0);
     var originalPrice = parseFloat(v.original_amount || 0);
 
-    return '<div class="listings__item" data-listing-id="' + v.id + '" data-status="' + v.status + '">' +
+    return '<div class="listings__item" data-listing-id="' + v.id + '" data-status="' + v.status + '" data-spec-data=\'' + JSON.stringify(v.spec_data || {}).replace(/'/g, "\\'") + '\' data-notes=\'' + escHtml(v.notes || '') + '\' data-product-name=\'' + escHtml(v.product_name || v.title || '') + '\'>' +
         '<div class="listings__item-main">' +
             '<div class="listings__item-header">' +
                 '<a href="/detail?id=' + v.id + '" class="listings__item-title">' + escHtml(v.title || v.product_name) + '</a>' +
@@ -455,10 +455,10 @@ async function delistItem(id) {
 async function relistItem(id) {
     if (!confirm('确认重新上架此商品？')) return;
     try {
-        var r = await fetch(API_BASE + '/market_api.php?action=update', {
+        var r = await fetch(API_BASE + '/market_api.php?action=update&id=' + id, {
             method: 'POST',
             headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-            body: 'id=' + id + '&status=1',
+            body: 'status=1',
             credentials: 'include'
         });
         var d = await r.json();
@@ -477,15 +477,44 @@ function editItem(id, btn) {
     var item = document.querySelector('[data-listing-id="' + id + '"]');
     if (!item) return;
 
-    var title = item.querySelector('.listings__item-title');
-    var titleText = title ? title.textContent.trim() : '';
+    var productName = item.dataset.productName || item.querySelector('.listings__item-title').textContent.trim();
 
     document.getElementById('editListingId').value = id;
-    document.getElementById('editTitle').value = titleText;
+    document.getElementById('editProductName').textContent = productName;
 
     var priceEl = item.querySelector('.card__price-amount');
     var priceText = priceEl ? priceEl.textContent.replace(/,/g, '') : '';
     document.getElementById('editPrice').value = parseFloat(priceText) || 0;
+
+    var notesEl = document.getElementById('editNotes');
+    if (notesEl) notesEl.value = item.dataset.notes || '';
+
+    var specData = {};
+    try {
+        specData = JSON.parse(item.dataset.specData || '{}');
+    } catch (e) {}
+    document.querySelectorAll('#editSpecFieldsContainer .publish__spec-field').forEach(function(f) {
+        var fieldName = f.dataset.fieldName;
+        var fieldType = f.dataset.fieldType;
+        var val = specData[fieldName];
+        if (val === undefined || val === null) return;
+
+        if (fieldType === 'checkbox') {
+            var values = String(val).split(',');
+            f.querySelectorAll('input[type="checkbox"]').forEach(function(cb) {
+                cb.checked = values.indexOf(cb.value) !== -1;
+            });
+        } else if (fieldType === 'radio') {
+            var radio = f.querySelector('input[type="radio"][value="' + val + '"]');
+            if (radio) radio.checked = true;
+        } else if (fieldType === 'dropdown') {
+            var select = f.querySelector('select');
+            if (select) select.value = val;
+        } else {
+            var input = f.querySelector('.publish__spec-input');
+            if (input) input.value = val;
+        }
+    });
 
     document.getElementById('editModal').style.display = '';
 }
@@ -521,18 +550,18 @@ async function saveEdit() {
     var id = document.getElementById('editListingId').value;
     if (!id) return;
 
-    var title = document.getElementById('editTitle').value.trim();
     var salePrice = parseFloat(document.getElementById('editPrice').value);
-    var desc = document.getElementById('editDesc').value.trim();
 
-    if (!title) { alert('请输入标题'); return; }
     if (!salePrice || salePrice <= 0) { alert('请输入有效的售价'); return; }
 
     var params = new URLSearchParams();
     params.append('id', id);
-    params.append('title', title);
     params.append('sale_price', salePrice);
-    if (desc) params.append('description', desc);
+
+    var notesEl = document.getElementById('editNotes');
+    if (notesEl && notesEl.value.trim()) {
+        params.append('notes', notesEl.value.trim());
+    }
 
     var specData = collectEditSpecData();
     if (Object.keys(specData).length > 0) {
