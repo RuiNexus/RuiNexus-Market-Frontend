@@ -70,8 +70,8 @@ function fmtPrice($p) {
 
 <!-- ===== Nav ===== -->
 <nav class="nav">
-    <a href="https://test.ruinexus.com" class="nav-logo">
-        <img src="https://test.ruinexus.com/themes/clientarea/default/assets/images/logo-inovice.png" alt="<?php echo htmlspecialchars($siteName); ?>">
+    <a href="<?php echo htmlspecialchars($apiBaseUrl); ?>" class="nav-logo">
+        <img src="<?php echo htmlspecialchars($apiBaseUrl); ?>/themes/clientarea/default/assets/images/logo-inovice.png" alt="<?php echo htmlspecialchars($siteName); ?>">
     </a>
     <ul class="nav-links">
         <li><a href="/" class="active">市场</a></li>
@@ -83,8 +83,8 @@ function fmtPrice($p) {
             <a href="/user/listings" class="nav-cta--ghost">我的</a>
             <a href="/user/orders" class="nav-cta--ghost">订单</a>
         <?php else: ?>
-            <a href="<?php echo Auth::getLoginUrl($apiBase); ?>" class="nav-cta--ghost">登录</a>
-            <a href="<?php echo Auth::getRegisterUrl($apiBase); ?>" class="nav-cta">注册</a>
+            <a href="<?php echo Auth::getLoginUrl($apiBaseUrl); ?>" class="nav-cta--ghost">登录</a>
+            <a href="<?php echo Auth::getRegisterUrl($apiBaseUrl); ?>" class="nav-cta">注册</a>
         <?php endif; ?>
     </div>
 </nav>
@@ -99,7 +99,7 @@ function fmtPrice($p) {
     <div style="background:#1a1a2e;padding:12px;margin-bottom:16px;border-radius:4px;font-family:monospace;font-size:12px;color:#fff;">
         <div>API Status: <span style="color:<?php echo $apiStatus == 200 ? '#4ade80' : '#f87171'; ?>"><?php echo htmlspecialchars($apiStatus); ?></span></div>
         <div>API Message: <?php echo htmlspecialchars($apiMsg); ?></div>
-        <div>API URL: <?php echo htmlspecialchars('https://test.ruinexus.com/market_api.php?action=list&page='.$page.'&size='.$size.'&sort='.$sort.($keyword ? '&keyword='.urlencode($keyword) : '')); ?></div>
+        <div>API URL: <?php echo htmlspecialchars($apiBaseUrl . '/market_api.php?action=list&page='.$page.'&size='.$size.'&sort='.$sort.($keyword ? '&keyword='.urlencode($keyword) : '')); ?></div>
         <div>Items Count: <?php echo count($list); ?></div>
     </div>
 </div>
