@@ -162,7 +162,7 @@ function fmtPrice($p) {
 
             <?php if (!empty($specData)): ?>
             <div class="detail__specs">
-                <h3 class="detail__section-title">配置信息</h3>
+                <h3 class="detail__section-title">卖家配置信息</h3>
                 <table class="detail__specs-table">
                     <tbody>
                     <?php foreach ($specData as $field => $value): ?>
