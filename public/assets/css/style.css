@@ -1268,6 +1268,7 @@ a.listings__item-title:hover {
 }
 
 .listings__item-side {
+    width: 170px;
     flex-shrink: 0;
     text-align: right;
     display: flex; flex-direction: column; align-items: flex-end; gap: 8px;
